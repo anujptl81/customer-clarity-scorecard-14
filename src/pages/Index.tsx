@@ -9,3 +9,6 @@ const Index = () => {
       <Dashboard />
     </div>
   );
+};
+
+export default Index;
