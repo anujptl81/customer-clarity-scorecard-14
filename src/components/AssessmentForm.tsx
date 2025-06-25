@@ -3,7 +3,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { CheckCircle2, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CheckCircle2, AlertCircle, XCircle, HelpCircle, CreditCard } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface AssessmentFormProps {
   responses: Record<number, string>;
@@ -61,6 +63,17 @@ const responseOptions = [
 ];
 
 const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseChange }) => {
+  const navigate = useNavigate();
+  const totalQuestions = questions.length;
+  const answeredQuestions = Object.keys(responses).length;
+  const isComplete = answeredQuestions === totalQuestions;
+
+  const handlePayAndAssess = () => {
+    // Store responses in localStorage to pass to payment page
+    localStorage.setItem('assessmentResponses', JSON.stringify(responses));
+    navigate('/payment');
+  };
+
   return (
     <div className="space-y-6">
       <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
@@ -68,6 +81,17 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseCh
           <CardTitle className="text-2xl font-bold text-gray-900">
             Self-Assessment Questions
           </CardTitle>
+          <div className="flex items-center justify-between">
+            <p className="text-gray-600">
+              Progress: {answeredQuestions}/{totalQuestions} questions completed
+            </p>
+            <div className="w-32 bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${(answeredQuestions / totalQuestions) * 100}%` }}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="space-y-8">
@@ -105,6 +129,26 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseCh
               </div>
             ))}
           </div>
+          
+          {isComplete && (
+            <div className="mt-8 text-center">
+              <Card className="max-w-md mx-auto bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-center mb-4">
+                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                  </div>
+                  <h3 className="font-semibold mb-2 text-gray-900">Assessment Complete!</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    You've answered all questions. Proceed to payment to get your detailed results.
+                  </p>
+                  <Button onClick={handlePayAndAssess} size="lg" className="w-full">
+                    <CreditCard className="h-4 w-4 mr-2" />
+                    Pay & Assess
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

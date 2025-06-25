@@ -4,15 +4,21 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, LogOut } from 'lucide-react';
-import PaymentGateway from './PaymentGateway';
 import AssessmentForm from './AssessmentForm';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const [currentView, setCurrentView] = React.useState<'assessment' | 'payment'>('assessment');
+  const [responses, setResponses] = React.useState<Record<number, string>>({});
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const handleResponseChange = (questionId: number, value: string) => {
+    setResponses(prev => ({
+      ...prev,
+      [questionId]: value
+    }));
   };
 
   return (
@@ -37,31 +43,15 @@ const Dashboard = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="flex space-x-4">
-              <Button
-                variant={currentView === 'assessment' ? 'default' : 'outline'}
-                onClick={() => setCurrentView('assessment')}
-              >
-                ICP Assessment
-              </Button>
-              <Button
-                variant={currentView === 'payment' ? 'default' : 'outline'}
-                onClick={() => setCurrentView('payment')}
-              >
-                Payment Gateway
-              </Button>
-            </div>
+            <h2 className="text-xl font-semibold mb-4">ICP Assessment</h2>
+            <p className="text-gray-600">Complete the assessment below to get your personalized results.</p>
           </CardContent>
         </Card>
 
-        {currentView === 'assessment' && (
-          <AssessmentForm
-            responses={{}}
-            onResponseChange={() => {}}
-          />
-        )}
-        
-        {currentView === 'payment' && <PaymentGateway />}
+        <AssessmentForm
+          responses={responses}
+          onResponseChange={handleResponseChange}
+        />
       </div>
     </div>
   );
