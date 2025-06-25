@@ -14,11 +14,11 @@ const Results = () => {
     // Get responses from localStorage
     const savedResponses = localStorage.getItem('assessmentResponses');
     if (savedResponses) {
-      const parsedResponses = JSON.parse(savedResponses);
+      const parsedResponses: Record<number, string> = JSON.parse(savedResponses);
       setResponses(parsedResponses);
       
-      // Calculate score
-      const calculatedScore = Object.values(parsedResponses).reduce((total, response) => {
+      // Calculate score with proper typing
+      const calculatedScore = Object.values(parsedResponses).reduce((total: number, response: string) => {
         switch (response) {
           case 'yes': return total + 2;
           case 'partially': return total + 1;
