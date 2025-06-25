@@ -4,41 +4,70 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Mail, Lock, Chrome } from 'lucide-react';
+import { Mail, Lock, Chrome, User } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { login, loginWithGoogle, isLoading } = useAuth();
+  const [fullName, setFullName] = useState('');
+  const [isSignUp, setIsSignUp] = useState(false);
+  const { login, signUp, loginWithGoogle, isLoading } = useAuth();
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = await login(email, password);
-    if (success) {
-      toast.success('Login successful!');
+    
+    if (isSignUp) {
+      const { error } = await signUp(email, password, fullName);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Account created! Please check your email to confirm your account.');
+      }
     } else {
-      toast.error('Invalid credentials. Please try again.');
+      const { error } = await login(email, password);
+      if (error) {
+        toast.error(error.message);
+      } else {
+        toast.success('Login successful!');
+      }
     }
   };
 
   const handleGoogleLogin = async () => {
-    const success = await loginWithGoogle();
-    if (success) {
-      toast.success('Google login successful!');
-    } else {
-      toast.error('Google login failed. Please try again.');
+    const { error } = await loginWithGoogle();
+    if (error) {
+      toast.error(error.message);
     }
   };
 
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">Login</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center">
+          {isSignUp ? 'Create Account' : 'Login'}
+        </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <form onSubmit={handleEmailLogin} className="space-y-4">
+        <form onSubmit={handleEmailAuth} className="space-y-4">
+          {isSignUp && (
+            <div className="space-y-2">
+              <Label htmlFor="fullName">Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="fullName"
+                  type="text"
+                  placeholder="Enter your full name"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          )}
+          
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <div className="relative">
@@ -72,7 +101,7 @@ const LoginForm = () => {
           </div>
           
           <Button type="submit" className="w-full" disabled={isLoading}>
-            {isLoading ? 'Logging in...' : 'Login with Email'}
+            {isLoading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Login')}
           </Button>
         </form>
         
@@ -94,6 +123,16 @@ const LoginForm = () => {
           <Chrome className="mr-2 h-4 w-4" />
           Continue with Google
         </Button>
+        
+        <div className="text-center">
+          <Button
+            variant="link"
+            onClick={() => setIsSignUp(!isSignUp)}
+            className="text-sm"
+          >
+            {isSignUp ? 'Already have an account? Login' : "Don't have an account? Sign up"}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );

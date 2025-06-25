@@ -1,17 +1,15 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-
-interface User {
-  id: string;
-  email: string;
-  name?: string;
-}
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
 interface AuthContextType {
   user: User | null;
-  login: (email: string, password: string) => Promise<boolean>;
-  loginWithGoogle: () => Promise<boolean>;
-  logout: () => void;
+  session: Session | null;
+  login: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
+  loginWithGoogle: () => Promise<{ error: any }>;
+  logout: () => Promise<void>;
   isLoading: boolean;
 }
 
@@ -27,54 +25,84 @@ export const useAuth = () => {
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Check for stored user session on load
-    const storedUser = localStorage.getItem('user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        setIsLoading(false);
+      }
+    );
+
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const signUp = async (email: string, password: string, fullName?: string) => {
     setIsLoading(true);
-    // Simulate API call - in real app, this would validate against a backend
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    const redirectUrl = `${window.location.origin}/`;
     
-    // Mock validation - in production, this would be server-side
-    if (email && password.length >= 6) {
-      const user = { id: '1', email, name: email.split('@')[0] };
-      setUser(user);
-      localStorage.setItem('user', JSON.stringify(user));
-      setIsLoading(false);
-      return true;
-    }
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: fullName ? { full_name: fullName } : undefined
+      }
+    });
+    
     setIsLoading(false);
-    return false;
+    return { error };
   };
 
-  const loginWithGoogle = async (): Promise<boolean> => {
+  const login = async (email: string, password: string) => {
     setIsLoading(true);
-    // In a real app, this would integrate with Google OAuth
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Mock Google login
-    const user = { id: '2', email: 'user@gmail.com', name: 'Google User' };
-    setUser(user);
-    localStorage.setItem('user', JSON.stringify(user));
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     setIsLoading(false);
-    return true;
+    return { error };
   };
 
-  const logout = () => {
-    setUser(null);
-    localStorage.removeItem('user');
+  const loginWithGoogle = async () => {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/`
+      }
+    });
+    setIsLoading(false);
+    return { error };
+  };
+
+  const logout = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
+    setIsLoading(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, loginWithGoogle, logout, isLoading }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session, 
+      login, 
+      signUp, 
+      loginWithGoogle, 
+      logout, 
+      isLoading 
+    }}>
       {children}
     </AuthContext.Provider>
   );

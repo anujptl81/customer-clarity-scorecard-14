@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, LogOut } from 'lucide-react';
-import LoginForm from './LoginForm';
 import PaymentGateway from './PaymentGateway';
 import AssessmentForm from './AssessmentForm';
 
@@ -12,13 +11,9 @@ const Dashboard = () => {
   const { user, logout } = useAuth();
   const [currentView, setCurrentView] = React.useState<'assessment' | 'payment'>('assessment');
 
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-        <LoginForm />
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    await logout();
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -31,11 +26,11 @@ const Dashboard = () => {
                   <User className="h-5 w-5 text-blue-600" />
                 </div>
                 <div>
-                  <CardTitle>Welcome, {user.name || user.email}!</CardTitle>
-                  <p className="text-sm text-gray-600">{user.email}</p>
+                  <CardTitle>Welcome, {user?.user_metadata?.full_name || user?.email}!</CardTitle>
+                  <p className="text-sm text-gray-600">{user?.email}</p>
                 </div>
               </div>
-              <Button variant="outline" onClick={logout}>
+              <Button variant="outline" onClick={handleLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
