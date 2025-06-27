@@ -1,14 +1,27 @@
 
 import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { User, LogOut } from 'lucide-react';
 import AssessmentForm from './AssessmentForm';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
+  const { isAdmin } = useUserRole();
+  const navigate = useNavigate();
   const [responses, setResponses] = React.useState<Record<number, string>>({});
+
+  React.useEffect(() => {
+    // Redirect based on user role
+    if (isAdmin) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
+  }, [isAdmin, navigate]);
 
   const handleLogout = async () => {
     await logout();
@@ -21,6 +34,8 @@ const Dashboard = () => {
     }));
   };
 
+  // This component is now mainly for backward compatibility
+  // The actual dashboard logic is in pages/Dashboard.tsx and pages/Home.tsx
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8">

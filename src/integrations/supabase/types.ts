@@ -9,6 +9,150 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      assessment_questions: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          id: string
+          options: Json | null
+          question_order: number
+          question_text: string
+          question_type: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          id?: string
+          options?: Json | null
+          question_order: number
+          question_text: string
+          question_type?: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          id?: string
+          options?: Json | null
+          question_order?: number
+          question_text?: string
+          question_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_questions_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "form_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessment_responses: {
+        Row: {
+          assessment_id: string | null
+          created_at: string | null
+          id: string
+          question_id: number
+          question_text: string | null
+          response: string
+          response_score: number | null
+        }
+        Insert: {
+          assessment_id?: string | null
+          created_at?: string | null
+          id?: string
+          question_id: number
+          question_text?: string | null
+          response: string
+          response_score?: number | null
+        }
+        Update: {
+          assessment_id?: string | null
+          created_at?: string | null
+          id?: string
+          question_id?: number
+          question_text?: string | null
+          response?: string
+          response_score?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_responses_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          date_formatted: string
+          form_assessment_id: string | null
+          id: string
+          score: number
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          date_formatted: string
+          form_assessment_id?: string | null
+          id?: string
+          score: number
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          date_formatted?: string
+          form_assessment_id?: string | null
+          id?: string
+          score?: number
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessments_form_assessment_id_fkey"
+            columns: ["form_assessment_id"]
+            isOneToOne: false
+            referencedRelation: "form_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      form_assessments: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          title: string
+          total_questions: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title: string
+          total_questions?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          title?: string
+          total_questions?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -17,6 +161,7 @@ export type Database = {
           full_name: string | null
           id: string
           updated_at: string
+          user_tier: string
         }
         Insert: {
           avatar_url?: string | null
@@ -25,6 +170,7 @@ export type Database = {
           full_name?: string | null
           id: string
           updated_at?: string
+          user_tier?: string
         }
         Update: {
           avatar_url?: string | null
@@ -33,6 +179,28 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+          user_tier?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string | null
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -41,10 +209,20 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -159,6 +337,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const

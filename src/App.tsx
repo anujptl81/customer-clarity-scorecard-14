@@ -10,6 +10,9 @@ import Auth from "./pages/Auth";
 import Payment from "./pages/Payment";
 import Results from "./pages/Results";
 import NotFound from "./pages/NotFound";
+import Home from "./pages/Home";
+import Dashboard from "./pages/Dashboard";
+import UserProfile from "./pages/UserProfile";
 
 const queryClient = new QueryClient();
 
@@ -61,7 +64,23 @@ const App = () => (
               path="/" 
               element={
                 <ProtectedRoute>
-                  <Index />
+                  <Home />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <UserProfile />
                 </ProtectedRoute>
               } 
             />
