@@ -35,14 +35,9 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (isAdmin) {
-      navigate('/dashboard');
-      return;
-    }
-    
     fetchAssessments();
     fetchUserProfile();
-  }, [isAdmin, navigate]);
+  }, []);
 
   const fetchAssessments = async () => {
     try {
@@ -87,7 +82,8 @@ const Home = () => {
   };
 
   const handleProceedWithAssessment = (assessment: Assessment) => {
-    if (userTier === 'Free') {
+    // Allow admins and premium users to take assessments
+    if (userTier === 'Free' && !isAdmin) {
       return; // Button should be disabled, but just in case
     }
     
@@ -140,13 +136,13 @@ const Home = () => {
                 <div className="space-y-2">
                   <Button
                     className="w-full"
-                    disabled={userTier === 'Free'}
+                    disabled={userTier === 'Free' && !isAdmin}
                     onClick={() => handleProceedWithAssessment(assessment)}
                   >
                     Proceed with Assessment: {assessment.title}
                   </Button>
                   
-                  {userTier === 'Free' && (
+                  {userTier === 'Free' && !isAdmin && (
                     <p className="text-sm text-amber-600 text-center">
                       Upgrade to Premium to take assessments
                     </p>

@@ -13,6 +13,13 @@ import NotFound from "./pages/NotFound";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import UserProfile from "./pages/UserProfile";
+import TakeAssessment from "./pages/TakeAssessment";
+import AdminAssessments from "./pages/AdminAssessments";
+import ManageUsers from "./pages/ManageUsers";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import Help from "./pages/Help";
+import Upgrade from "./pages/Upgrade";
 
 const queryClient = new QueryClient();
 
@@ -81,6 +88,62 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <UserProfile />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/assessment/:id" 
+              element={
+                <ProtectedRoute>
+                  <TakeAssessment />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/assessments" 
+              element={
+                <ProtectedRoute>
+                  <AdminAssessments />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/admin/users" 
+              element={
+                <ProtectedRoute>
+                  <ManageUsers />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/about" 
+              element={
+                <ProtectedRoute>
+                  <About />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/contact" 
+              element={
+                <ProtectedRoute>
+                  <Contact />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/help" 
+              element={
+                <ProtectedRoute>
+                  <Help />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/upgrade" 
+              element={
+                <ProtectedRoute>
+                  <Upgrade />
                 </ProtectedRoute>
               } 
             />
