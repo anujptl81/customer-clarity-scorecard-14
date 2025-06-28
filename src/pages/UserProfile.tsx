@@ -33,8 +33,9 @@ interface UserProfileData {
 
 interface CompletedAssessment {
   id: string;
-  score: number;
-  created_at: string;
+  total_score: number;
+  percentage_score: number;
+  completed_at: string;
   form_assessments: {
     title: string;
   };
@@ -84,22 +85,42 @@ const UserProfile = () => {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('assessments')
+      // Fetch user assessments with form details
+      const { data: userAssessments, error: assessmentError } = await supabase
+        .from('user_assessments')
         .select(`
           *,
-          form_assessments(title),
-          assessment_responses(*)
+          form_assessments(title)
         `)
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .order('completed_at', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching assessments:', error);
+      if (assessmentError) {
+        console.error('Error fetching user assessments:', assessmentError);
         return;
       }
 
-      setCompletedAssessments(data || []);
+      // For each assessment, fetch the responses
+      const assessmentsWithResponses = await Promise.all(
+        (userAssessments || []).map(async (assessment) => {
+          const { data: responses, error: responseError } = await supabase
+            .from('assessment_responses')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('question_uuid', assessment.assessment_id); // This might need adjustment based on your data structure
+
+          if (responseError) {
+            console.error('Error fetching responses:', responseError);
+          }
+
+          return {
+            ...assessment,
+            assessment_responses: responses || []
+          };
+        })
+      );
+
+      setCompletedAssessments(assessmentsWithResponses);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -224,7 +245,7 @@ const UserProfile = () => {
             <CardContent>
               <div className="text-3xl font-bold">
                 {completedAssessments.filter(a => 
-                  new Date(a.created_at).getMonth() === new Date().getMonth()
+                  new Date(a.completed_at).getMonth() === new Date().getMonth()
                 ).length}
               </div>
             </CardContent>
@@ -237,9 +258,9 @@ const UserProfile = () => {
             <CardContent>
               <div className="text-3xl font-bold">
                 {completedAssessments.length > 0 
-                  ? Math.round(completedAssessments.reduce((sum, a) => sum + a.score, 0) / completedAssessments.length)
+                  ? Math.round(completedAssessments.reduce((sum, a) => sum + a.percentage_score, 0) / completedAssessments.length)
                   : 0
-                }
+                }%
               </div>
             </CardContent>
           </Card>
@@ -259,6 +280,7 @@ const UserProfile = () => {
                       <TableHead>Assessment Name</TableHead>
                       <TableHead>Date & Time</TableHead>
                       <TableHead>Score</TableHead>
+                      <TableHead>Percentage</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -267,10 +289,13 @@ const UserProfile = () => {
                       <TableRow key={assessment.id}>
                         <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
                         <TableCell>
-                          {new Date(assessment.created_at).toLocaleString()}
+                          {new Date(assessment.completed_at).toLocaleString()}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{assessment.score}</Badge>
+                          <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
                         </TableCell>
                         <TableCell>
                           <Button
@@ -337,7 +362,7 @@ const UserProfile = () => {
               </Button>
             </div>
             <DialogDescription>
-              {selectedAssessment?.form_assessments?.title} - Score: {selectedAssessment?.score}
+              {selectedAssessment?.form_assessments?.title} - Score: {selectedAssessment?.total_score}/{selectedAssessment?.max_possible_score} ({Math.round(selectedAssessment?.percentage_score || 0)}%)
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
@@ -345,8 +370,12 @@ const UserProfile = () => {
               <div key={index} className="border-b pb-4">
                 <p className="font-medium mb-2">{response.question_text}</p>
                 <p className="text-blue-600 capitalize">{response.response}</p>
+                <p className="text-sm text-gray-500">Score: {response.response_score}</p>
               </div>
             ))}
+            {(!selectedAssessment?.assessment_responses || selectedAssessment.assessment_responses.length === 0) && (
+              <p className="text-gray-500">No detailed responses available for this assessment.</p>
+            )}
           </div>
         </DialogContent>
       </Dialog>

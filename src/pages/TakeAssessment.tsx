@@ -25,7 +25,7 @@ interface Question {
   question_text: string;
   question_type: string;
   question_order: number;
-  options: any[];
+  options: any[] | null;
   is_required: boolean;
 }
 
@@ -76,7 +76,17 @@ const TakeAssessment = () => {
         return;
       }
 
-      setQuestions(questionsData || []);
+      // Transform the data to match our Question interface
+      const transformedQuestions = (questionsData || []).map(item => ({
+        id: item.id,
+        question_text: item.question_text,
+        question_type: item.question_type,
+        question_order: item.question_order,
+        options: item.options ? (Array.isArray(item.options) ? item.options : JSON.parse(item.options as string)) : null,
+        is_required: item.is_required
+      }));
+
+      setQuestions(transformedQuestions);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to load assessment');
@@ -111,7 +121,7 @@ const TakeAssessment = () => {
             if (option) totalScore += option.score || 0;
           } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
             response.forEach((selectedValue: string) => {
-              const option = question.options.find((opt: any) => opt.text === selectedValue);
+              const option = question.options!.find((opt: any) => opt.text === selectedValue);
               if (option) totalScore += option.score || 0;
             });
           }
@@ -181,7 +191,7 @@ const TakeAssessment = () => {
               if (option) questionScore = option.score || 0;
             } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
               response.forEach((selectedValue: string) => {
-                const option = question.options.find((opt: any) => opt.text === selectedValue);
+                const option = question.options!.find((opt: any) => opt.text === selectedValue);
                 if (option) questionScore += option.score || 0;
               });
             }

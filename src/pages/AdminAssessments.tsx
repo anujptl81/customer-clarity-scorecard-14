@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -38,7 +37,7 @@ interface Question {
   question_text: string;
   question_type: string;
   question_order: number;
-  options: any[];
+  options: any[] | null;
   is_required: boolean;
 }
 
@@ -114,7 +113,17 @@ const AdminAssessments = () => {
         return;
       }
 
-      setQuestions(data || []);
+      // Transform the data to match our Question interface
+      const transformedQuestions = (data || []).map(item => ({
+        id: item.id,
+        question_text: item.question_text,
+        question_type: item.question_type,
+        question_order: item.question_order,
+        options: item.options ? (Array.isArray(item.options) ? item.options : JSON.parse(item.options as string)) : null,
+        is_required: item.is_required
+      }));
+
+      setQuestions(transformedQuestions);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to fetch questions');
@@ -189,7 +198,9 @@ const AdminAssessments = () => {
         question_text: questionFormData.question_text,
         question_type: questionFormData.question_type,
         question_order: editingQuestion ? editingQuestion.question_order : questions.length + 1,
-        options: questionFormData.question_type === 'text' ? null : questionFormData.options,
+        options: questionFormData.question_type === 'text' || questionFormData.question_type === 'textarea' 
+          ? null 
+          : questionFormData.options,
         is_required: questionFormData.is_required
       };
 
