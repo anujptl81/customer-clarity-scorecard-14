@@ -34,6 +34,7 @@ interface UserProfileData {
 interface CompletedAssessment {
   id: string;
   total_score: number;
+  max_possible_score: number;
   percentage_score: number;
   completed_at: string;
   form_assessments: {
@@ -107,7 +108,7 @@ const UserProfile = () => {
             .from('assessment_responses')
             .select('*')
             .eq('user_id', user.id)
-            .eq('question_uuid', assessment.assessment_id); // This might need adjustment based on your data structure
+            .eq('question_uuid', assessment.assessment_id);
 
           if (responseError) {
             console.error('Error fetching responses:', responseError);
