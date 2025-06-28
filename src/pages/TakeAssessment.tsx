@@ -82,10 +82,11 @@ const TakeAssessment = () => {
         question_text: item.question_text,
         question_type: item.question_type,
         question_order: item.question_order,
-        options: item.options ? (Array.isArray(item.options) ? item.options : JSON.parse(item.options as string)) : null,
+        options: item.options ? (typeof item.options === 'string' ? JSON.parse(item.options) : item.options) : null,
         is_required: item.is_required
       }));
 
+      console.log('Transformed questions:', transformedQuestions);
       setQuestions(transformedQuestions);
     } catch (error) {
       console.error('Error:', error);
@@ -101,6 +102,7 @@ const TakeAssessment = () => {
       ...prev,
       [questionId]: value
     }));
+    console.log('Response changed:', questionId, value);
   };
 
   const calculateScore = () => {
@@ -221,6 +223,8 @@ const TakeAssessment = () => {
   };
 
   const renderQuestion = (question: Question) => {
+    console.log('Rendering question:', question);
+    
     switch (question.question_type) {
       case 'radio':
         return (
@@ -231,8 +235,8 @@ const TakeAssessment = () => {
             {question.options?.map((option: any, index: number) => (
               <div key={index} className="flex items-center space-x-2">
                 <RadioGroupItem value={option.text} id={`${question.id}-${index}`} />
-                <Label htmlFor={`${question.id}-${index}`}>
-                  {option.text} <span className="text-gray-500">({option.score} pts)</span>
+                <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer">
+                  {option.text} {option.score !== undefined && <span className="text-gray-500">({option.score} pts)</span>}
                 </Label>
               </div>
             ))}
@@ -256,8 +260,8 @@ const TakeAssessment = () => {
                     }
                   }}
                 />
-                <Label htmlFor={`${question.id}-${index}`}>
-                  {option.text} <span className="text-gray-500">({option.score} pts)</span>
+                <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer">
+                  {option.text} {option.score !== undefined && <span className="text-gray-500">({option.score} pts)</span>}
                 </Label>
               </div>
             ))}

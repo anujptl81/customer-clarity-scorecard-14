@@ -117,6 +117,12 @@ const Home = () => {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Available Assessments</h1>
           <p className="text-gray-600">Choose an assessment to get started with your evaluation</p>
+          {isAdmin && (
+            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+              <p className="text-blue-800 font-medium">Admin Access</p>
+              <p className="text-blue-600 text-sm">You have full access to all assessments as an administrator</p>
+            </div>
+          )}
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -131,6 +137,11 @@ const Home = () => {
                   <Badge variant="secondary">
                     {assessment.total_questions} Questions
                   </Badge>
+                  {isAdmin && (
+                    <Badge variant="outline" className="text-blue-600">
+                      Admin Access
+                    </Badge>
+                  )}
                 </div>
                 
                 <div className="space-y-2">

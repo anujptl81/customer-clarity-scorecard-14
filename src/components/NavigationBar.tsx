@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { 
   NavigationMenu,
@@ -24,17 +25,36 @@ const NavigationBar = () => {
   const { role, isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userTier, setUserTier] = useState('Free');
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, [user]);
+
+  const fetchUserProfile = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_tier')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+
+      setUserTier(data?.user_tier || 'Free');
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const handleLogout = async () => {
     await logout();
   };
-
-  const getUserTier = () => {
-    // This would come from user profile data
-    return 'Free'; // Default for now
-  };
-
-  const userTier = getUserTier();
 
   return (
     <nav className="bg-white shadow-sm border-b">
@@ -47,11 +67,9 @@ const NavigationBar = () => {
             
             {/* Desktop Navigation */}
             <div className="hidden md:ml-6 md:flex md:space-x-8">
-              {!isAdmin && (
-                <Button variant="ghost" onClick={() => navigate('/')}>
-                  Home
-                </Button>
-              )}
+              <Button variant="ghost" onClick={() => navigate('/')}>
+                Home
+              </Button>
               
               {isAdmin && (
                 <>
@@ -140,11 +158,9 @@ const NavigationBar = () => {
         {isMobileMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              {!isAdmin && (
-                <Button variant="ghost" className="w-full justify-start" onClick={() => navigate('/')}>
-                  Home
-                </Button>
-              )}
+              <Button variant="ghost" className="w-full justify-start" onClick={() => navigate('/')}>
+                Home
+              </Button>
               
               {isAdmin && (
                 <>
