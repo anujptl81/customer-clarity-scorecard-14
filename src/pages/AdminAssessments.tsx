@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
@@ -32,6 +33,15 @@ interface Assessment {
   created_at: string;
 }
 
+interface Question {
+  id: string;
+  question_text: string;
+  question_type: string;
+  question_order: number;
+  options: any[];
+  is_required: boolean;
+}
+
 const AdminAssessments = () => {
   const { user } = useAuth();
   const { isAdmin, isLoading } = useUserRole();
@@ -40,10 +50,21 @@ const AdminAssessments = () => {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     total_questions: 0
+  });
+
+  const [questionFormData, setQuestionFormData] = useState({
+    question_text: '',
+    question_type: 'radio',
+    options: [{ text: '', score: 0 }],
+    is_required: true
   });
 
   useEffect(() => {
@@ -79,6 +100,27 @@ const AdminAssessments = () => {
     }
   };
 
+  const fetchQuestions = async (assessmentId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('assessment_questions')
+        .select('*')
+        .eq('assessment_id', assessmentId)
+        .order('question_order');
+
+      if (error) {
+        console.error('Error fetching questions:', error);
+        toast.error('Failed to fetch questions');
+        return;
+      }
+
+      setQuestions(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to fetch questions');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -89,13 +131,11 @@ const AdminAssessments = () => {
 
     try {
       if (editingAssessment) {
-        // Update existing assessment
         const { error } = await supabase
           .from('form_assessments')
           .update({
             title: formData.title,
             description: formData.description,
-            total_questions: formData.total_questions,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingAssessment.id);
@@ -108,13 +148,12 @@ const AdminAssessments = () => {
 
         toast.success('Assessment updated successfully');
       } else {
-        // Create new assessment
         const { error } = await supabase
           .from('form_assessments')
           .insert({
             title: formData.title,
             description: formData.description,
-            total_questions: formData.total_questions
+            total_questions: 0
           });
 
         if (error) {
@@ -126,7 +165,6 @@ const AdminAssessments = () => {
         toast.success('Assessment created successfully');
       }
 
-      // Reset form and close dialog
       setFormData({ title: '', description: '', total_questions: 0 });
       setIsCreateDialogOpen(false);
       setEditingAssessment(null);
@@ -134,6 +172,79 @@ const AdminAssessments = () => {
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to save assessment');
+    }
+  };
+
+  const handleQuestionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!questionFormData.question_text.trim() || !selectedAssessment) {
+      toast.error('Question text is required');
+      return;
+    }
+
+    try {
+      const questionData = {
+        assessment_id: selectedAssessment.id,
+        question_text: questionFormData.question_text,
+        question_type: questionFormData.question_type,
+        question_order: editingQuestion ? editingQuestion.question_order : questions.length + 1,
+        options: questionFormData.question_type === 'text' ? null : questionFormData.options,
+        is_required: questionFormData.is_required
+      };
+
+      if (editingQuestion) {
+        const { error } = await supabase
+          .from('assessment_questions')
+          .update(questionData)
+          .eq('id', editingQuestion.id);
+
+        if (error) {
+          console.error('Error updating question:', error);
+          toast.error('Failed to update question');
+          return;
+        }
+
+        toast.success('Question updated successfully');
+      } else {
+        const { error } = await supabase
+          .from('assessment_questions')
+          .insert(questionData);
+
+        if (error) {
+          console.error('Error creating question:', error);
+          toast.error('Failed to create question');
+          return;
+        }
+
+        toast.success('Question created successfully');
+      }
+
+      // Update assessment question count
+      const { error: updateError } = await supabase
+        .from('form_assessments')
+        .update({ 
+          total_questions: editingQuestion ? selectedAssessment.total_questions : selectedAssessment.total_questions + 1 
+        })
+        .eq('id', selectedAssessment.id);
+
+      if (updateError) {
+        console.error('Error updating question count:', updateError);
+      }
+
+      setQuestionFormData({
+        question_text: '',
+        question_type: 'radio',
+        options: [{ text: '', score: 0 }],
+        is_required: true
+      });
+      setIsQuestionDialogOpen(false);
+      setEditingQuestion(null);
+      fetchQuestions(selectedAssessment.id);
+      fetchAssessments();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to save question');
     }
   };
 
@@ -145,6 +256,17 @@ const AdminAssessments = () => {
       total_questions: assessment.total_questions
     });
     setIsCreateDialogOpen(true);
+  };
+
+  const handleEditQuestion = (question: Question) => {
+    setEditingQuestion(question);
+    setQuestionFormData({
+      question_text: question.question_text,
+      question_type: question.question_type,
+      options: question.options || [{ text: '', score: 0 }],
+      is_required: question.is_required
+    });
+    setIsQuestionDialogOpen(true);
   };
 
   const handleDelete = async (assessmentId: string) => {
@@ -172,6 +294,47 @@ const AdminAssessments = () => {
     }
   };
 
+  const handleDeleteQuestion = async (questionId: string) => {
+    if (!confirm('Are you sure you want to delete this question?')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('assessment_questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) {
+        console.error('Error deleting question:', error);
+        toast.error('Failed to delete question');
+        return;
+      }
+
+      if (selectedAssessment) {
+        // Update assessment question count
+        const { error: updateError } = await supabase
+          .from('form_assessments')
+          .update({ 
+            total_questions: selectedAssessment.total_questions - 1 
+          })
+          .eq('id', selectedAssessment.id);
+
+        if (updateError) {
+          console.error('Error updating question count:', updateError);
+        }
+
+        fetchQuestions(selectedAssessment.id);
+        fetchAssessments();
+      }
+
+      toast.success('Question deleted successfully');
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to delete question');
+    }
+  };
+
   const toggleActive = async (assessmentId: string, isActive: boolean) => {
     try {
       const { error } = await supabase
@@ -193,6 +356,29 @@ const AdminAssessments = () => {
     }
   };
 
+  const addOption = () => {
+    setQuestionFormData(prev => ({
+      ...prev,
+      options: [...prev.options, { text: '', score: 0 }]
+    }));
+  };
+
+  const updateOption = (index: number, field: string, value: any) => {
+    setQuestionFormData(prev => ({
+      ...prev,
+      options: prev.options.map((opt, i) => 
+        i === index ? { ...opt, [field]: value } : opt
+      )
+    }));
+  };
+
+  const removeOption = (index: number) => {
+    setQuestionFormData(prev => ({
+      ...prev,
+      options: prev.options.filter((_, i) => i !== index)
+    }));
+  };
+
   if (loading || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -205,7 +391,7 @@ const AdminAssessments = () => {
   }
 
   if (!isAdmin) {
-    return null; // Will redirect
+    return null;
   }
 
   return (
@@ -216,7 +402,7 @@ const AdminAssessments = () => {
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Assessments</h1>
-            <p className="text-gray-600">Create, edit, and manage assessment forms</p>
+            <p className="text-gray-600">Create, edit, and manage assessment forms and questions</p>
           </div>
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -256,17 +442,6 @@ const AdminAssessments = () => {
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Enter assessment description"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="total_questions">Total Questions</Label>
-                  <Input
-                    id="total_questions"
-                    type="number"
-                    value={formData.total_questions}
-                    onChange={(e) => setFormData(prev => ({ ...prev, total_questions: parseInt(e.target.value) || 0 }))}
-                    placeholder="Enter number of questions"
-                    min="0"
                   />
                 </div>
                 <DialogFooter>
@@ -310,6 +485,17 @@ const AdminAssessments = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => {
+                        setSelectedAssessment(assessment);
+                        fetchQuestions(assessment.id);
+                      }}
+                    >
+                      <Settings className="h-4 w-4 mr-1" />
+                      Manage Questions
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => toggleActive(assessment.id, assessment.is_active)}
                     >
                       {assessment.is_active ? 'Deactivate' : 'Activate'}
@@ -346,6 +532,167 @@ const AdminAssessments = () => {
             </Button>
           </div>
         )}
+
+        {selectedAssessment && (
+          <Card className="mt-8">
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Questions for "{selectedAssessment.title}"</CardTitle>
+                <Button onClick={() => {
+                  setEditingQuestion(null);
+                  setQuestionFormData({
+                    question_text: '',
+                    question_type: 'radio',
+                    options: [{ text: '', score: 0 }],
+                    is_required: true
+                  });
+                  setIsQuestionDialogOpen(true);
+                }}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Question
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {questions.map((question, index) => (
+                  <Card key={question.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h4 className="font-medium">
+                            {index + 1}. {question.question_text}
+                          </h4>
+                          <p className="text-sm text-gray-500 mt-1">
+                            Type: {question.question_type} | Required: {question.is_required ? 'Yes' : 'No'}
+                          </p>
+                          {question.options && (
+                            <div className="mt-2">
+                              <p className="text-sm font-medium">Options:</p>
+                              <ul className="text-sm text-gray-600 ml-4">
+                                {question.options.map((option: any, idx: number) => (
+                                  <li key={idx}>• {option.text} (Score: {option.score})</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleEditQuestion(question)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => handleDeleteQuestion(question.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+                {questions.length === 0 && (
+                  <p className="text-gray-500 text-center py-8">
+                    No questions added yet. Click "Add Question" to get started.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingQuestion ? 'Edit Question' : 'Add New Question'}
+              </DialogTitle>
+            </DialogHeader>
+            <form onSubmit={handleQuestionSubmit} className="space-y-4">
+              <div>
+                <Label htmlFor="question_text">Question Text</Label>
+                <Textarea
+                  id="question_text"
+                  value={questionFormData.question_text}
+                  onChange={(e) => setQuestionFormData(prev => ({ ...prev, question_text: e.target.value }))}
+                  placeholder="Enter your question"
+                  required
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="question_type">Question Type</Label>
+                <Select
+                  value={questionFormData.question_type}
+                  onValueChange={(value) => setQuestionFormData(prev => ({ ...prev, question_type: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="radio">Single Choice (Radio)</SelectItem>
+                    <SelectItem value="checkbox">Multiple Choice (Checkbox)</SelectItem>
+                    <SelectItem value="text">Text Input</SelectItem>
+                    <SelectItem value="textarea">Long Text (Textarea)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {(questionFormData.question_type === 'radio' || questionFormData.question_type === 'checkbox') && (
+                <div>
+                  <Label>Answer Options</Label>
+                  <div className="space-y-2">
+                    {questionFormData.options.map((option, index) => (
+                      <div key={index} className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Option text"
+                          value={option.text}
+                          onChange={(e) => updateOption(index, 'text', e.target.value)}
+                          className="flex-1"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="Score"
+                          value={option.score}
+                          onChange={(e) => updateOption(index, 'score', parseInt(e.target.value) || 0)}
+                          className="w-20"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => removeOption(index)}
+                          disabled={questionFormData.options.length <= 1}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                    <Button type="button" variant="outline" onClick={addOption}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Option
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingQuestion ? 'Update Question' : 'Add Question'}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

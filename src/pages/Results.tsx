@@ -1,64 +1,330 @@
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import ScoreDisplay from '@/components/ScoreDisplay';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { 
+  Trophy, 
+  Target, 
+  TrendingUp, 
+  CheckCircle, 
+  Home,
+  BarChart3
+} from 'lucide-react';
+import { toast } from 'sonner';
+import NavigationBar from '@/components/NavigationBar';
+
+interface AssessmentResult {
+  id: string;
+  assessment_id: string;
+  total_score: number;
+  max_possible_score: number;
+  percentage_score: number;
+  completed_at: string;
+  assessment_title?: string;
+  assessment_description?: string;
+}
+
+interface ResponseDetail {
+  question_text: string;
+  response: string;
+  response_score: number;
+}
 
 const Results = () => {
-  const [responses, setResponses] = useState<Record<number, string>>({});
-  const [score, setScore] = useState(0);
+  const [searchParams] = useSearchParams();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [result, setResult] = useState<AssessmentResult | null>(null);
+  const [responses, setResponses] = useState<ResponseDetail[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const assessmentId = searchParams.get('assessment');
+  const score = searchParams.get('score');
+  const maxScore = searchParams.get('maxScore');
+  const percentage = searchParams.get('percentage');
 
   useEffect(() => {
-    // Get responses from localStorage
-    const savedResponses = localStorage.getItem('assessmentResponses');
-    if (savedResponses) {
-      const parsedResponses: Record<number, string> = JSON.parse(savedResponses);
-      setResponses(parsedResponses);
-      
-      // Calculate score with proper typing
-      const calculatedScore = Object.values(parsedResponses).reduce((total: number, response: string) => {
-        switch (response) {
-          case 'yes': return total + 2;
-          case 'partially': return total + 1;
-          case 'no': return total + 0;
-          case 'dont-know': return total - 1;
-          default: return total;
-        }
-      }, 0);
-      
-      setScore(calculatedScore);
-    } else {
-      // If no responses found, redirect back to assessment
-      navigate('/');
+    if (assessmentId) {
+      fetchResults();
+    } else if (score && maxScore && percentage) {
+      // Handle results from URL parameters (for immediate display)
+      setResult({
+        id: 'temp',
+        assessment_id: 'temp',
+        total_score: parseInt(score),
+        max_possible_score: parseInt(maxScore),
+        percentage_score: parseFloat(percentage),
+        completed_at: new Date().toISOString()
+      });
+      setLoading(false);
     }
-  }, [navigate]);
+  }, [assessmentId, score, maxScore, percentage]);
 
-  const handleReset = () => {
-    localStorage.removeItem('assessmentResponses');
-    navigate('/');
+  const fetchResults = async () => {
+    if (!user || !assessmentId) return;
+
+    try {
+      // Fetch the user assessment result
+      const { data: assessmentData, error: assessmentError } = await supabase
+        .from('user_assessments')
+        .select(`
+          *,
+          form_assessments (
+            title,
+            description
+          )
+        `)
+        .eq('id', assessmentId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (assessmentError) {
+        console.error('Error fetching assessment result:', assessmentError);
+        toast.error('Assessment result not found');
+        navigate('/');
+        return;
+      }
+
+      setResult({
+        ...assessmentData,
+        assessment_title: assessmentData.form_assessments?.title,
+        assessment_description: assessmentData.form_assessments?.description
+      });
+
+      // Fetch detailed responses
+      const { data: responsesData, error: responsesError } = await supabase
+        .from('assessment_responses')
+        .select('question_text, response, response_score')
+        .eq('user_id', user.id)
+        .order('created_at');
+
+      if (responsesError) {
+        console.error('Error fetching responses:', responsesError);
+      } else {
+        setResponses(responsesData || []);
+      }
+
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load results');
+      navigate('/');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleBackToDashboard = () => {
-    navigate('/');
+  const getScoreColor = (percentage: number) => {
+    if (percentage >= 80) return 'text-green-600';
+    if (percentage >= 60) return 'text-blue-600';
+    if (percentage >= 40) return 'text-yellow-600';
+    return 'text-red-600';
   };
+
+  const getScoreBadge = (percentage: number) => {
+    if (percentage >= 80) return { label: 'Excellent', variant: 'default' as const };
+    if (percentage >= 60) return { label: 'Good', variant: 'secondary' as const };
+    if (percentage >= 40) return { label: 'Average', variant: 'outline' as const };
+    return { label: 'Needs Improvement', variant: 'destructive' as const };
+  };
+
+  const getInsights = (percentage: number) => {
+    if (percentage >= 80) {
+      return {
+        title: 'Outstanding Performance!',
+        description: 'You demonstrate excellent understanding and readiness in this area.',
+        recommendations: [
+          'Continue leveraging your strengths',
+          'Consider sharing your knowledge with others',
+          'Look for advanced challenges in this domain'
+        ]
+      };
+    } else if (percentage >= 60) {
+      return {
+        title: 'Good Progress',
+        description: 'You show solid understanding with room for strategic improvement.',
+        recommendations: [
+          'Focus on areas where you scored lower',
+          'Seek additional resources for skill enhancement',
+          'Practice regularly to maintain momentum'
+        ]
+      };
+    } else if (percentage >= 40) {
+      return {
+        title: 'Room for Growth',
+        description: 'You have a foundation to build upon with focused effort.',
+        recommendations: [
+          'Identify specific knowledge gaps',
+          'Create a structured learning plan',
+          'Consider seeking mentorship or training'
+        ]
+      };
+    } else {
+      return {
+        title: 'Development Opportunity',
+        description: 'This assessment highlights areas that need immediate attention.',
+        recommendations: [
+          'Start with fundamental concepts',
+          'Break down learning into manageable steps',
+          'Consider formal training or courses'
+        ]
+      };
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <NavigationBar />
+        <div className="flex items-center justify-center pt-20">
+          <div className="text-lg">Loading results...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <NavigationBar />
+        <div className="flex items-center justify-center pt-20">
+          <div className="text-lg">Results not found</div>
+        </div>
+      </div>
+    );
+  }
+
+  const scoreBadge = getScoreBadge(result.percentage_score);
+  const insights = getInsights(result.percentage_score);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        <div className="flex items-center space-x-4 mb-6">
-          <Button variant="outline" size="sm" onClick={handleBackToDashboard}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      <NavigationBar />
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Assessment Results</h1>
+            <p className="text-gray-600">
+              {result.assessment_title && `${result.assessment_title} • `}
+              Completed on {new Date(result.completed_at).toLocaleDateString()}
+            </p>
+          </div>
+
+          {/* Score Overview */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Trophy className="h-6 w-6 mr-2 text-yellow-500" />
+                Your Score
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center">
+                  <div className={`text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
+                    {result.total_score}
+                  </div>
+                  <p className="text-gray-600">Total Points</p>
+                </div>
+                <div className="text-center">
+                  <div className={`text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
+                    {Math.round(result.percentage_score)}%
+                  </div>
+                  <p className="text-gray-600">Percentage</p>
+                </div>
+                <div className="text-center">
+                  <Badge variant={scoreBadge.variant} className="text-lg px-4 py-2">
+                    {scoreBadge.label}
+                  </Badge>
+                  <p className="text-gray-600 mt-2">Performance Level</p>
+                </div>
+              </div>
+              
+              <div className="mt-6">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Progress</span>
+                  <span>{result.total_score} / {result.max_possible_score} points</span>
+                </div>
+                <Progress value={result.percentage_score} className="h-3" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Insights */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <TrendingUp className="h-6 w-6 mr-2 text-blue-500" />
+                Insights & Recommendations
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{insights.title}</h3>
+                  <p className="text-gray-600">{insights.description}</p>
+                </div>
+                
+                <div>
+                  <h4 className="font-medium text-gray-900 mb-2">Recommendations:</h4>
+                  <ul className="space-y-2">
+                    {insights.recommendations.map((rec, index) => (
+                      <li key={index} className="flex items-start">
+                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="text-gray-700">{rec}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Detailed Responses */}
+          {responses.length > 0 && (
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <BarChart3 className="h-6 w-6 mr-2 text-purple-500" />
+                  Response Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {responses.map((response, index) => (
+                    <div key={index} className="border-l-4 border-blue-200 pl-4">
+                      <h4 className="font-medium text-gray-900 mb-1">
+                        {index + 1}. {response.question_text}
+                      </h4>
+                      <p className="text-gray-700 mb-1">Your answer: {response.response}</p>
+                      <Badge variant="outline">
+                        {response.response_score} points
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Actions */}
+          <div className="flex justify-center space-x-4">
+            <Button onClick={() => navigate('/')} variant="outline">
+              <Home className="h-4 w-4 mr-2" />
+              Back to Home
+            </Button>
+            <Button onClick={() => navigate('/profile')}>
+              <Target className="h-4 w-4 mr-2" />
+              View All Results
+            </Button>
+          </div>
         </div>
-        
-        <ScoreDisplay 
-          score={score} 
-          responses={responses} 
-          onReset={handleReset} 
-        />
       </div>
     </div>
   );

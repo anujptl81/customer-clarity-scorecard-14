@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import NavigationBar from '@/components/NavigationBar';
@@ -24,7 +25,8 @@ interface Question {
   question_text: string;
   question_type: string;
   question_order: number;
-  options: any;
+  options: any[];
+  is_required: boolean;
 }
 
 const TakeAssessment = () => {
@@ -93,74 +95,93 @@ const TakeAssessment = () => {
 
   const calculateScore = () => {
     let totalScore = 0;
+    let maxPossibleScore = 0;
+    
     questions.forEach(question => {
       const response = responses[question.id];
-      if (response && question.options) {
-        if (question.question_type === 'radio') {
-          const option = question.options.find((opt: any) => opt.value === response);
-          if (option) totalScore += option.score || 0;
-        } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
-          response.forEach((selectedValue: string) => {
-            const option = question.options.find((opt: any) => opt.value === selectedValue);
+      
+      if (question.options && question.options.length > 0) {
+        // Calculate max possible score for this question
+        const maxQuestionScore = Math.max(...question.options.map((opt: any) => opt.score || 0));
+        maxPossibleScore += maxQuestionScore;
+        
+        if (response) {
+          if (question.question_type === 'radio') {
+            const option = question.options.find((opt: any) => opt.text === response);
             if (option) totalScore += option.score || 0;
-          });
+          } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
+            response.forEach((selectedValue: string) => {
+              const option = question.options.find((opt: any) => opt.text === selectedValue);
+              if (option) totalScore += option.score || 0;
+            });
+          }
         }
       }
     });
-    return totalScore;
+    
+    return { totalScore, maxPossibleScore };
   };
 
   const handleSubmit = async () => {
     if (!user || !assessment) return;
 
-    // Check if all questions are answered
-    const unansweredQuestions = questions.filter(q => !responses[q.id]);
-    if (unansweredQuestions.length > 0) {
-      toast.error('Please answer all questions before submitting');
+    // Check if all required questions are answered
+    const unansweredRequired = questions.filter(q => 
+      q.is_required && (!responses[q.id] || 
+        (Array.isArray(responses[q.id]) && responses[q.id].length === 0) ||
+        (typeof responses[q.id] === 'string' && responses[q.id].trim() === '')
+      )
+    );
+    
+    if (unansweredRequired.length > 0) {
+      toast.error('Please answer all required questions before submitting');
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const score = calculateScore();
+      const { totalScore, maxPossibleScore } = calculateScore();
+      const percentageScore = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
       
-      // Create assessment record
-      const { data: assessmentRecord, error: assessmentError } = await supabase
-        .from('assessments')
+      // Create user assessment record
+      const { data: userAssessment, error: assessmentError } = await supabase
+        .from('user_assessments')
         .insert({
           user_id: user.id,
-          form_assessment_id: assessment.id,
-          score: score,
-          date_formatted: new Date().toLocaleDateString()
+          assessment_id: assessment.id,
+          total_score: totalScore,
+          max_possible_score: maxPossibleScore,
+          percentage_score: Math.round(percentageScore * 100) / 100
         })
         .select()
         .single();
 
       if (assessmentError) {
-        console.error('Error creating assessment:', assessmentError);
+        console.error('Error creating user assessment:', assessmentError);
         toast.error('Failed to submit assessment');
         return;
       }
 
       // Create response records
       const responseRecords = questions.map(question => ({
-        assessment_id: assessmentRecord.id,
-        question_id: parseInt(question.id),
+        user_id: user.id,
+        question_uuid: question.id,
+        question_id: parseInt(question.question_order.toString()), // For backward compatibility
         question_text: question.question_text,
         response: Array.isArray(responses[question.id]) 
           ? responses[question.id].join(', ') 
-          : responses[question.id],
+          : responses[question.id] || '',
         response_score: (() => {
           const response = responses[question.id];
           let questionScore = 0;
           if (response && question.options) {
             if (question.question_type === 'radio') {
-              const option = question.options.find((opt: any) => opt.value === response);
+              const option = question.options.find((opt: any) => opt.text === response);
               if (option) questionScore = option.score || 0;
             } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
               response.forEach((selectedValue: string) => {
-                const option = question.options.find((opt: any) => opt.value === selectedValue);
+                const option = question.options.find((opt: any) => opt.text === selectedValue);
                 if (option) questionScore += option.score || 0;
               });
             }
@@ -180,7 +201,7 @@ const TakeAssessment = () => {
       }
 
       toast.success('Assessment submitted successfully!');
-      navigate(`/results?assessment=${assessmentRecord.id}&score=${score}`);
+      navigate(`/results?assessment=${userAssessment.id}&score=${totalScore}&maxScore=${maxPossibleScore}&percentage=${Math.round(percentageScore)}`);
     } catch (error) {
       console.error('Error submitting assessment:', error);
       toast.error('Failed to submit assessment');
@@ -199,9 +220,9 @@ const TakeAssessment = () => {
           >
             {question.options?.map((option: any, index: number) => (
               <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={option.value} id={`${question.id}-${index}`} />
+                <RadioGroupItem value={option.text} id={`${question.id}-${index}`} />
                 <Label htmlFor={`${question.id}-${index}`}>
-                  {option.label} {option.score !== undefined && `(${option.score} pts)`}
+                  {option.text} <span className="text-gray-500">({option.score} pts)</span>
                 </Label>
               </div>
             ))}
@@ -215,18 +236,18 @@ const TakeAssessment = () => {
               <div key={index} className="flex items-center space-x-2">
                 <Checkbox
                   id={`${question.id}-${index}`}
-                  checked={(responses[question.id] || []).includes(option.value)}
+                  checked={(responses[question.id] || []).includes(option.text)}
                   onCheckedChange={(checked) => {
                     const currentValues = responses[question.id] || [];
                     if (checked) {
-                      handleResponseChange(question.id, [...currentValues, option.value]);
+                      handleResponseChange(question.id, [...currentValues, option.text]);
                     } else {
-                      handleResponseChange(question.id, currentValues.filter((v: string) => v !== option.value));
+                      handleResponseChange(question.id, currentValues.filter((v: string) => v !== option.text));
                     }
                   }}
                 />
                 <Label htmlFor={`${question.id}-${index}`}>
-                  {option.label} {option.score !== undefined && `(${option.score} pts)`}
+                  {option.text} <span className="text-gray-500">({option.score} pts)</span>
                 </Label>
               </div>
             ))}
@@ -239,6 +260,16 @@ const TakeAssessment = () => {
             value={responses[question.id] || ''}
             onChange={(e) => handleResponseChange(question.id, e.target.value)}
             placeholder="Enter your answer"
+          />
+        );
+
+      case 'textarea':
+        return (
+          <Textarea
+            value={responses[question.id] || ''}
+            onChange={(e) => handleResponseChange(question.id, e.target.value)}
+            placeholder="Enter your detailed answer"
+            rows={4}
           />
         );
 
@@ -278,12 +309,16 @@ const TakeAssessment = () => {
           <CardHeader>
             <CardTitle className="text-2xl">{assessment.title}</CardTitle>
             <p className="text-gray-600">{assessment.description}</p>
+            <p className="text-sm text-gray-500">
+              {questions.length} questions • Required fields marked with *
+            </p>
           </CardHeader>
           <CardContent className="space-y-6">
             {questions.map((question, index) => (
-              <div key={question.id} className="space-y-3">
+              <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-medium">
                   {index + 1}. {question.question_text}
+                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
                 </h3>
                 {renderQuestion(question)}
               </div>

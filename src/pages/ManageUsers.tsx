@@ -15,28 +15,37 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Search, UserCheck } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Search, UserCheck, UserX, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 
-interface User {
+interface UserProfile {
   id: string;
   email: string;
   full_name: string | null;
   user_tier: string;
   created_at: string;
   role?: string;
+  assessment_count?: number;
 }
 
 const ManageUsers = () => {
   const { user } = useAuth();
   const { isAdmin, isLoading } = useUserRole();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<User[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [tierFilter, setTierFilter] = useState('all');
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -50,30 +59,25 @@ const ManageUsers = () => {
   }, [isAdmin, isLoading, navigate]);
 
   useEffect(() => {
-    // Filter users based on search term
-    const filtered = users.filter(user => 
-      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-    setFilteredUsers(filtered);
-  }, [users, searchTerm]);
+    filterUsers();
+  }, [users, searchTerm, tierFilter]);
 
   const fetchUsers = async () => {
     try {
-      // Fetch users from profiles table
-      const { data: profilesData, error: profilesError } = await supabase
+      // Fetch all user profiles
+      const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (profilesError) {
-        console.error('Error fetching users:', profilesError);
+        console.error('Error fetching profiles:', profilesError);
         toast.error('Failed to fetch users');
         return;
       }
 
       // Fetch user roles
-      const { data: rolesData, error: rolesError } = await supabase
+      const { data: roles, error: rolesError } = await supabase
         .from('user_roles')
         .select('user_id, role');
 
@@ -81,16 +85,28 @@ const ManageUsers = () => {
         console.error('Error fetching roles:', rolesError);
       }
 
-      // Combine user data with roles
-      const usersWithRoles = profilesData.map(profile => {
-        const userRole = rolesData?.find(role => role.user_id === profile.id);
+      // Fetch assessment counts for each user
+      const { data: assessmentCounts, error: assessmentError } = await supabase
+        .from('user_assessments')
+        .select('user_id');
+
+      if (assessmentError) {
+        console.error('Error fetching assessment counts:', assessmentError);
+      }
+
+      // Combine the data
+      const usersWithRoles = (profiles || []).map(profile => {
+        const userRole = roles?.find(r => r.user_id === profile.id);
+        const userAssessments = assessmentCounts?.filter(ac => ac.user_id === profile.id) || [];
+        
         return {
           ...profile,
-          role: userRole?.role || 'user'
+          role: userRole?.role || 'user',
+          assessment_count: userAssessments.length
         };
       });
 
-      setUsers(usersWithRoles || []);
+      setUsers(usersWithRoles);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to fetch users');
@@ -99,80 +115,83 @@ const ManageUsers = () => {
     }
   };
 
-  const promoteToAdmin = async (userId: string) => {
-    if (!confirm('Are you sure you want to promote this user to admin?')) {
-      return;
+  const filterUsers = () => {
+    let filtered = users;
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(user => 
+        user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
     }
 
+    // Filter by tier
+    if (tierFilter !== 'all') {
+      filtered = filtered.filter(user => user.user_tier === tierFilter);
+    }
+
+    setFilteredUsers(filtered);
+  };
+
+  const updateUserRole = async (userId: string, newRole: string) => {
     try {
-      // Check if user already has a role
-      const { data: existingRole, error: checkError } = await supabase
-        .from('user_roles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (checkError && checkError.code !== 'PGRST116') {
-        console.error('Error checking existing role:', checkError);
-        toast.error('Failed to check user role');
-        return;
-      }
-
-      if (existingRole) {
-        // Update existing role
+      if (newRole === 'admin') {
+        // Add admin role
         const { error } = await supabase
           .from('user_roles')
-          .update({ role: 'admin' })
-          .eq('user_id', userId);
+          .upsert({ user_id: userId, role: 'admin' });
 
         if (error) {
-          console.error('Error updating role:', error);
+          console.error('Error promoting user:', error);
           toast.error('Failed to promote user');
           return;
         }
+
+        toast.success('User promoted to admin successfully');
       } else {
-        // Insert new role
+        // Remove admin role (default to user)
         const { error } = await supabase
           .from('user_roles')
-          .insert({ user_id: userId, role: 'admin' });
+          .delete()
+          .eq('user_id', userId)
+          .eq('role', 'admin');
 
         if (error) {
-          console.error('Error inserting role:', error);
-          toast.error('Failed to promote user');
+          console.error('Error demoting user:', error);
+          toast.error('Failed to demote user');
           return;
         }
+
+        toast.success('User demoted to regular user');
       }
 
-      toast.success('User promoted to admin successfully');
+      // Refresh users list
       fetchUsers();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to promote user');
+      console.error('Error updating user role:', error);
+      toast.error('Failed to update user role');
     }
   };
 
-  const demoteFromAdmin = async (userId: string) => {
-    if (!confirm('Are you sure you want to remove admin privileges from this user?')) {
-      return;
-    }
-
+  const updateUserTier = async (userId: string, newTier: string) => {
     try {
       const { error } = await supabase
-        .from('user_roles')
-        .update({ role: 'user' })
-        .eq('user_id', userId);
+        .from('profiles')
+        .update({ user_tier: newTier })
+        .eq('id', userId);
 
       if (error) {
-        console.error('Error demoting user:', error);
-        toast.error('Failed to demote user');
+        console.error('Error updating user tier:', error);
+        toast.error('Failed to update user tier');
         return;
       }
 
-      toast.success('Admin privileges removed successfully');
+      toast.success(`User tier updated to ${newTier}`);
       fetchUsers();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to demote user');
+      console.error('Error updating user tier:', error);
+      toast.error('Failed to update user tier');
     }
   };
 
@@ -188,7 +207,7 @@ const ManageUsers = () => {
   }
 
   if (!isAdmin) {
-    return null; // Will redirect
+    return null;
   }
 
   return (
@@ -198,88 +217,124 @@ const ManageUsers = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Users</h1>
-          <p className="text-gray-600">View and manage registered users</p>
+          <p className="text-gray-600">View and manage user accounts, roles, and tiers</p>
         </div>
 
         <Card>
           <CardHeader>
-            <div className="flex justify-between items-center">
-              <CardTitle>Registered Users ({filteredUsers.length})</CardTitle>
-              <div className="flex items-center space-x-2">
-                <Search className="h-4 w-4 text-gray-500" />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="Search by name or email..."
+                  placeholder="Search users by name or email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64"
+                  className="pl-10"
                 />
               </div>
+              <Select value={tierFilter} onValueChange={setTierFilter}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Filter by tier" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Tiers</SelectItem>
+                  <SelectItem value="Free">Free</SelectItem>
+                  <SelectItem value="Premium">Premium</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardHeader>
           <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Tier</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      {user.full_name || 'N/A'}
-                    </TableCell>
-                    <TableCell>{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={user.user_tier === 'Premium' ? 'default' : 'secondary'}>
-                        {user.user_tier}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'destructive' : 'outline'}>
-                        {user.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {new Date(user.created_at).toLocaleDateString()}
-                    </TableCell>
-                    <TableCell>
-                      {user.role === 'admin' ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => demoteFromAdmin(user.id)}
-                        >
-                          Remove Admin
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => promoteToAdmin(user.id)}
-                        >
-                          <UserCheck className="h-4 w-4 mr-1" />
-                          Make Admin
-                        </Button>
-                      )}
-                    </TableCell>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Tier</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Assessments</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-500">
-                  {searchTerm ? 'No users found matching your search.' : 'No users found.'}
-                </p>
-              </div>
-            )}
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((userData) => (
+                    <TableRow key={userData.id}>
+                      <TableCell>
+                        <div>
+                          <div className="font-medium">{userData.full_name || 'No name'}</div>
+                          <div className="text-sm text-gray-500">{userData.email}</div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Select
+                          value={userData.user_tier}
+                          onValueChange={(value) => updateUserTier(userData.id, value)}
+                        >
+                          <SelectTrigger className="w-[100px]">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Free">Free</SelectItem>
+                            <SelectItem value="Premium">Premium</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={userData.role === 'admin' ? 'default' : 'secondary'}>
+                          {userData.role === 'admin' && <Crown className="h-3 w-3 mr-1" />}
+                          {userData.role || 'user'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {userData.assessment_count || 0} completed
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-sm">
+                          {new Date(userData.created_at).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end space-x-2">
+                          {userData.role === 'admin' ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateUserRole(userData.id, 'user')}
+                              disabled={userData.id === user?.id}
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Demote
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => updateUserRole(userData.id, 'admin')}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Promote
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              
+              {filteredUsers.length === 0 && (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No users found matching your criteria.</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="mt-4 text-sm text-gray-500">
+              Showing {filteredUsers.length} of {users.length} users
+            </div>
           </CardContent>
         </Card>
       </div>

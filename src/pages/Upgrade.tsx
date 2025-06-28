@@ -1,90 +1,209 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import NavigationBar from '@/components/NavigationBar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Check, CreditCard, Zap } from 'lucide-react';
+import { Check, Crown, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import NavigationBar from '@/components/NavigationBar';
 
 const Upgrade = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const [userTier, setUserTier] = useState('Free');
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
-  const handleMockPayment = async () => {
+  useEffect(() => {
+    fetchUserProfile();
+  }, [user]);
+
+  const fetchUserProfile = async () => {
     if (!user) return;
 
-    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('user_tier')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return;
+      }
+
+      setUserTier(data?.user_tier || 'Free');
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMockPayment = async () => {
+    setProcessing(true);
+    
     try {
       // Simulate payment processing
       await new Promise(resolve => setTimeout(resolve, 2000));
-
+      
       // Update user tier to Premium
       const { error } = await supabase
         .from('profiles')
         .update({ user_tier: 'Premium' })
-        .eq('id', user.id);
+        .eq('id', user?.id);
 
       if (error) {
-        console.error('Error upgrading user:', error);
+        console.error('Error updating user tier:', error);
         toast.error('Failed to upgrade account');
         return;
       }
 
-      toast.success('Payment successful! Welcome to Premium!');
-      navigate('/profile');
+      setUserTier('Premium');
+      toast.success('🎉 Successfully upgraded to Premium!');
+      
+      // Redirect to home after success
+      setTimeout(() => {
+        navigate('/');
+      }, 2000);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error processing payment:', error);
       toast.error('Payment failed. Please try again.');
     } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
   const handleRazorpayPayment = async () => {
-    if (!user) return;
-
-    setLoading(true);
+    setProcessing(true);
+    
     try {
-      // For demo purposes, we'll simulate Razorpay payment
-      // In a real implementation, you would integrate with Razorpay SDK
+      // Mock Razorpay integration
+      // In a real implementation, you would:
+      // 1. Create an order on your backend
+      // 2. Initialize Razorpay with the order details
+      // 3. Handle the payment callback
+      
+      const options = {
+        key: 'rzp_test_mock_key', // Mock key
+        amount: 99900, // Amount in paise (₹999)
+        currency: 'INR',
+        name: 'Assessment Hub',
+        description: 'Premium Subscription',
+        handler: async function (response: any) {
+          console.log('Payment successful:', response);
+          
+          // Update user tier after successful payment
+          const { error } = await supabase
+            .from('profiles')
+            .update({ user_tier: 'Premium' })
+            .eq('id', user?.id);
+
+          if (error) {
+            console.error('Error updating user tier:', error);
+            toast.error('Failed to upgrade account');
+            return;
+          }
+
+          setUserTier('Premium');
+          toast.success('🎉 Payment successful! Welcome to Premium!');
+          
+          setTimeout(() => {
+            navigate('/');
+          }, 2000);
+        },
+        prefill: {
+          email: user?.email,
+        },
+        modal: {
+          ondismiss: function() {
+            setProcessing(false);
+          }
+        }
+      };
+
+      // Since we can't actually load Razorpay in this environment,
+      // we'll simulate the payment flow
+      toast.info('Simulating Razorpay payment...');
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Update user tier to Premium
-      const { error } = await supabase
-        .from('profiles')
-        .update({ user_tier: 'Premium' })
-        .eq('id', user.id);
-
-      if (error) {
-        console.error('Error upgrading user:', error);
-        toast.error('Failed to upgrade account');
-        return;
-      }
-
-      toast.success('Razorpay payment successful! Welcome to Premium!');
-      navigate('/profile');
+      
+      // Simulate successful payment
+      options.handler({ 
+        razorpay_payment_id: 'pay_mock_' + Date.now(),
+        razorpay_order_id: 'order_mock_' + Date.now(),
+        razorpay_signature: 'mock_signature'
+      });
+      
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error with Razorpay payment:', error);
       toast.error('Payment failed. Please try again.');
-    } finally {
-      setLoading(false);
+      setProcessing(false);
     }
   };
 
-  const features = [
-    "Access to all premium assessments",
-    "Detailed assessment results and analytics",
-    "Assessment history with unlimited storage",
-    "Advanced scoring and insights",
-    "Priority customer support",
-    "Export results to PDF",
-    "Custom assessment recommendations"
-  ];
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <NavigationBar />
+        <div className="flex items-center justify-center pt-20">
+          <div className="text-lg">Loading...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (userTier === 'Premium') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+        <NavigationBar />
+        
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-2xl mx-auto text-center">
+            <div className="mb-8">
+              <Crown className="h-16 w-16 text-yellow-500 mx-auto mb-4" />
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">You're Premium!</h1>
+              <p className="text-gray-600">You already have access to all premium features.</p>
+            </div>
+            
+            <Card>
+              <CardContent className="pt-6">
+                <h3 className="text-xl font-semibold mb-4">Your Premium Benefits</h3>
+                <div className="space-y-3 text-left">
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Unlimited assessment access</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Detailed result analytics</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Assessment history tracking</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Priority support</span>
+                  </div>
+                </div>
+                
+                <Button 
+                  className="w-full mt-6" 
+                  onClick={() => navigate('/')}
+                >
+                  Go to Assessments
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -94,123 +213,119 @@ const Upgrade = () => {
         <div className="max-w-4xl mx-auto">
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Upgrade to Premium</h1>
-            <p className="text-gray-600">Unlock the full potential of our assessment platform</p>
+            <p className="text-gray-600">Unlock all features and take unlimited assessments</p>
           </div>
 
-          <div className="grid gap-8 md:grid-cols-2">
-            {/* Free Plan */}
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Free Tier */}
             <Card className="relative">
               <CardHeader>
-                <div className="text-center">
-                  <CardTitle className="text-2xl">Free Plan</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold">$0</span>
-                    <span className="text-gray-600">/month</span>
-                  </div>
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-xl">Free</CardTitle>
+                  <Badge variant="secondary">Current Plan</Badge>
                 </div>
+                <div className="text-3xl font-bold">₹0<span className="text-lg font-normal">/month</span></div>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-3">
-                  <li className="flex items-center">
+                <div className="space-y-3">
+                  <div className="flex items-center">
                     <Check className="h-5 w-5 text-green-500 mr-3" />
-                    Browse available assessments
-                  </li>
-                  <li className="flex items-center">
+                    <span>Browse available assessments</span>
+                  </div>
+                  <div className="flex items-center">
                     <Check className="h-5 w-5 text-green-500 mr-3" />
-                    View assessment descriptions
-                  </li>
-                  <li className="flex items-center">
-                    <Check className="h-5 w-5 text-green-500 mr-3" />
-                    Basic profile management
-                  </li>
-                </ul>
-                <Badge variant="secondary" className="mt-4">
-                  Current Plan
-                </Badge>
+                    <span>View assessment descriptions</span>
+                  </div>
+                  <div className="flex items-center text-gray-400">
+                    <span className="h-5 w-5 mr-3">✗</span>
+                    <span>Take assessments</span>
+                  </div>
+                  <div className="flex items-center text-gray-400">
+                    <span className="h-5 w-5 mr-3">✗</span>
+                    <span>View detailed results</span>
+                  </div>
+                  <div className="flex items-center text-gray-400">
+                    <span className="h-5 w-5 mr-3">✗</span>
+                    <span>Assessment history</span>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Premium Plan */}
+            {/* Premium Tier */}
             <Card className="relative border-2 border-blue-500">
-              <div className="absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                <Badge className="bg-blue-500">
-                  <Zap className="h-4 w-4 mr-1" />
+              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                <Badge className="bg-blue-500 hover:bg-blue-600">
+                  <Crown className="h-4 w-4 mr-1" />
                   Most Popular
                 </Badge>
               </div>
               <CardHeader>
-                <div className="text-center">
-                  <CardTitle className="text-2xl">Premium Plan</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold text-blue-600">$29</span>
-                    <span className="text-gray-600">/month</span>
-                  </div>
-                </div>
+                <CardTitle className="text-xl">Premium</CardTitle>
+                <div className="text-3xl font-bold">₹999<span className="text-lg font-normal">/month</span></div>
               </CardHeader>
               <CardContent>
-                <ul className="space-y-3">
-                  {features.map((feature, index) => (
-                    <li key={index} className="flex items-center">
-                      <Check className="h-5 w-5 text-green-500 mr-3" />
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="mt-6 space-y-3">
+                <div className="space-y-3 mb-6">
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Everything in Free</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Unlimited assessment access</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Detailed result analytics</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Assessment history tracking</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Check className="h-5 w-5 text-green-500 mr-3" />
+                    <span>Priority support</span>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
                   <Button 
                     className="w-full" 
-                    onClick={handleMockPayment}
-                    disabled={loading}
+                    onClick={handleRazorpayPayment}
+                    disabled={processing}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    {loading ? 'Processing...' : 'Pay with Mock Gateway'}
+                    {processing ? (
+                      'Processing...'
+                    ) : (
+                      <>
+                        <Zap className="h-4 w-4 mr-2" />
+                        Pay with Razorpay
+                      </>
+                    )}
                   </Button>
-                  
+
                   <Button 
                     variant="outline" 
                     className="w-full"
-                    onClick={handleRazorpayPayment}
-                    disabled={loading}
+                    onClick={handleMockPayment}
+                    disabled={processing}
                   >
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    {loading ? 'Processing...' : 'Pay with Razorpay'}
+                    {processing ? 'Processing...' : 'Mock Payment (Demo)'}
                   </Button>
+
+                  <p className="text-xs text-gray-500 text-center">
+                    Use "Mock Payment" for testing purposes
+                  </p>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle className="text-center">Why Upgrade?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-6 md:grid-cols-3">
-                <div className="text-center">
-                  <div className="bg-blue-100 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                    <Check className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Complete Access</h3>
-                  <p className="text-sm text-gray-600">Take unlimited assessments and track your progress over time</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-blue-100 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                    <Zap className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Advanced Insights</h3>
-                  <p className="text-sm text-gray-600">Get detailed analytics and personalized recommendations</p>
-                </div>
-                <div className="text-center">
-                  <div className="bg-blue-100 rounded-full p-3 w-12 h-12 mx-auto mb-3 flex items-center justify-center">
-                    <CreditCard className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold mb-2">Priority Support</h3>
-                  <p className="text-sm text-gray-600">Get help when you need it with our premium support team</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="mt-8 text-center">
+            <p className="text-gray-600">
+              Questions about our pricing? <Button variant="link" onClick={() => navigate('/contact')}>Contact us</Button>
+            </p>
+          </div>
         </div>
       </div>
     </div>

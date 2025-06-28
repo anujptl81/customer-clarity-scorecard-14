@@ -14,28 +14,34 @@ export type Database = {
           assessment_id: string
           created_at: string
           id: string
+          is_required: boolean
           options: Json | null
           question_order: number
           question_text: string
           question_type: string
+          updated_at: string
         }
         Insert: {
           assessment_id: string
           created_at?: string
           id?: string
+          is_required?: boolean
           options?: Json | null
           question_order: number
           question_text: string
           question_type?: string
+          updated_at?: string
         }
         Update: {
           assessment_id?: string
           created_at?: string
           id?: string
+          is_required?: boolean
           options?: Json | null
           question_order?: number
           question_text?: string
           question_type?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -54,8 +60,10 @@ export type Database = {
           id: string
           question_id: number
           question_text: string | null
+          question_uuid: string | null
           response: string
           response_score: number | null
+          user_id: string | null
         }
         Insert: {
           assessment_id?: string | null
@@ -63,8 +71,10 @@ export type Database = {
           id?: string
           question_id: number
           question_text?: string | null
+          question_uuid?: string | null
           response: string
           response_score?: number | null
+          user_id?: string | null
         }
         Update: {
           assessment_id?: string | null
@@ -72,15 +82,17 @@ export type Database = {
           id?: string
           question_id?: number
           question_text?: string | null
+          question_uuid?: string | null
           response?: string
           response_score?: number | null
+          user_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "assessment_responses_assessment_id_fkey"
-            columns: ["assessment_id"]
+            foreignKeyName: "assessment_responses_question_uuid_fkey"
+            columns: ["question_uuid"]
             isOneToOne: false
-            referencedRelation: "assessments"
+            referencedRelation: "assessment_questions"
             referencedColumns: ["id"]
           },
         ]
@@ -182,6 +194,47 @@ export type Database = {
           user_tier?: string
         }
         Relationships: []
+      }
+      user_assessments: {
+        Row: {
+          assessment_id: string
+          completed_at: string
+          created_at: string
+          id: string
+          max_possible_score: number
+          percentage_score: number
+          total_score: number
+          user_id: string
+        }
+        Insert: {
+          assessment_id: string
+          completed_at?: string
+          created_at?: string
+          id?: string
+          max_possible_score?: number
+          percentage_score?: number
+          total_score?: number
+          user_id: string
+        }
+        Update: {
+          assessment_id?: string
+          completed_at?: string
+          created_at?: string
+          id?: string
+          max_possible_score?: number
+          percentage_score?: number
+          total_score?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_assessments_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "form_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
