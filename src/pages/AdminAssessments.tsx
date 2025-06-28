@@ -61,7 +61,7 @@ const AdminAssessments = () => {
 
   const [questionFormData, setQuestionFormData] = useState({
     question_text: '',
-    question_type: 'radio',
+    question_type: '',
     options: [{ text: '', score: 0 }],
     is_required: true
   });
@@ -187,8 +187,8 @@ const AdminAssessments = () => {
   const handleQuestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!questionFormData.question_text.trim() || !selectedAssessment) {
-      toast.error('Question text is required');
+    if (!questionFormData.question_text.trim() || !selectedAssessment || !questionFormData.question_type) {
+      toast.error('Question text and type are required');
       return;
     }
 
@@ -243,12 +243,7 @@ const AdminAssessments = () => {
         console.error('Error updating question count:', updateError);
       }
 
-      setQuestionFormData({
-        question_text: '',
-        question_type: 'radio',
-        options: [{ text: '', score: 0 }],
-        is_required: true
-      });
+      resetQuestionForm();
       setIsQuestionDialogOpen(false);
       setEditingQuestion(null);
       fetchQuestions(selectedAssessment.id);
@@ -257,6 +252,37 @@ const AdminAssessments = () => {
       console.error('Error:', error);
       toast.error('Failed to save question');
     }
+  };
+
+  const resetQuestionForm = () => {
+    setQuestionFormData({
+      question_text: '',
+      question_type: '',
+      options: [{ text: '', score: 0 }],
+      is_required: true
+    });
+  };
+
+  const handleQuestionTypeChange = (value: string) => {
+    setQuestionFormData(prev => {
+      const newFormData = { ...prev, question_type: value };
+      
+      // Set default options for single choice (radio)
+      if (value === 'radio') {
+        newFormData.options = [
+          { text: 'Yes', score: 2 },
+          { text: 'Partially In place', score: 1 },
+          { text: 'No', score: 0 },
+          { text: "Don't know", score: -1 }
+        ];
+      } else if (value === 'checkbox') {
+        newFormData.options = [{ text: '', score: 0 }];
+      } else {
+        newFormData.options = [];
+      }
+      
+      return newFormData;
+    });
   };
 
   const handleEdit = (assessment: Assessment) => {
@@ -553,7 +579,7 @@ const AdminAssessments = () => {
                   setEditingQuestion(null);
                   setQuestionFormData({
                     question_text: '',
-                    question_type: 'radio',
+                    question_type: '',
                     options: [{ text: '', score: 0 }],
                     is_required: true
                   });
@@ -641,10 +667,10 @@ const AdminAssessments = () => {
                 <Label htmlFor="question_type">Question Type</Label>
                 <Select
                   value={questionFormData.question_type}
-                  onValueChange={(value) => setQuestionFormData(prev => ({ ...prev, question_type: value }))}
+                  onValueChange={handleQuestionTypeChange}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select question type" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="radio">Single Choice (Radio)</SelectItem>
@@ -694,7 +720,14 @@ const AdminAssessments = () => {
               )}
 
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsQuestionDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsQuestionDialogOpen(false);
+                    resetQuestionForm();
+                  }}
+                >
                   Cancel
                 </Button>
                 <Button type="submit">

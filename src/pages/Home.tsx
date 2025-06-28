@@ -1,10 +1,18 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +21,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 
@@ -24,20 +31,38 @@ interface Assessment {
   total_questions: number;
 }
 
+interface CompletedAssessment {
+  id: string;
+  total_score: number;
+  max_possible_score: number;
+  percentage_score: number;
+  completed_at: string;
+  form_assessments: {
+    title: string;
+  };
+  assessment_responses: any[];
+}
+
 const Home = () => {
   const { user } = useAuth();
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [assessments, setAssessments] = useState<Assessment[]>([]);
+  const [completedAssessments, setCompletedAssessments] = useState<CompletedAssessment[]>([]);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+  const [selectedCompletedAssessment, setSelectedCompletedAssessment] = useState<CompletedAssessment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isCompletedDialogOpen, setIsCompletedDialogOpen] = useState(false);
   const [userTier, setUserTier] = useState('Free');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchAssessments();
     fetchUserProfile();
-  }, []);
+    if (!isAdmin) {
+      fetchCompletedAssessments();
+    }
+  }, [isAdmin]);
 
   const fetchAssessments = async () => {
     try {
@@ -81,10 +106,52 @@ const Home = () => {
     }
   };
 
+  const fetchCompletedAssessments = async () => {
+    if (!user) return;
+
+    try {
+      const { data: userAssessments, error: assessmentError } = await supabase
+        .from('user_assessments')
+        .select(`
+          *,
+          form_assessments(title)
+        `)
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false });
+
+      if (assessmentError) {
+        console.error('Error fetching user assessments:', assessmentError);
+        return;
+      }
+
+      const assessmentsWithResponses = await Promise.all(
+        (userAssessments || []).map(async (assessment) => {
+          const { data: responses, error: responseError } = await supabase
+            .from('assessment_responses')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('question_uuid', assessment.assessment_id);
+
+          if (responseError) {
+            console.error('Error fetching responses:', responseError);
+          }
+
+          return {
+            ...assessment,
+            assessment_responses: responses || []
+          };
+        })
+      );
+
+      setCompletedAssessments(assessmentsWithResponses);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
   const handleProceedWithAssessment = (assessment: Assessment) => {
-    // Allow admins and premium users to take assessments
     if (userTier === 'Free' && !isAdmin) {
-      return; // Button should be disabled, but just in case
+      return;
     }
     
     setSelectedAssessment(assessment);
@@ -96,6 +163,11 @@ const Home = () => {
       navigate(`/assessment/${selectedAssessment.id}`);
     }
     setIsDialogOpen(false);
+  };
+
+  const handleViewCompletedSummary = (assessment: CompletedAssessment) => {
+    setSelectedCompletedAssessment(assessment);
+    setIsCompletedDialogOpen(true);
   };
 
   if (loading) {
@@ -169,6 +241,66 @@ const Home = () => {
             <p className="text-gray-500 text-lg">No assessments available at the moment.</p>
           </div>
         )}
+
+        {/* Previously Completed Assessments for non-admin users */}
+        {!isAdmin && (
+          <Card className="mt-12">
+            <CardHeader>
+              <CardTitle>Previously Completed Assessments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {completedAssessments.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Assessment Name</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {completedAssessments.slice(0, 5).map((assessment) => (
+                      <TableRow key={assessment.id}>
+                        <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
+                        <TableCell>
+                          {new Date(assessment.completed_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            onClick={() => handleViewCompletedSummary(assessment)}
+                            className="p-0 h-auto"
+                          >
+                            View Summary
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No assessments completed yet.</p>
+                </div>
+              )}
+              {completedAssessments.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" onClick={() => navigate('/profile')}>
+                    View All Completed Assessments
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -187,6 +319,30 @@ const Home = () => {
               Take Assessment
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Completed Assessment Summary Dialog */}
+      <Dialog open={isCompletedDialogOpen} onOpenChange={setIsCompletedDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assessment Summary</DialogTitle>
+            <DialogDescription>
+              {selectedCompletedAssessment?.form_assessments?.title} - Score: {selectedCompletedAssessment?.total_score}/{selectedCompletedAssessment?.max_possible_score} ({Math.round(selectedCompletedAssessment?.percentage_score || 0)}%)
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4 space-y-4">
+            {selectedCompletedAssessment?.assessment_responses?.map((response, index) => (
+              <div key={index} className="border-b pb-4">
+                <p className="font-medium mb-2">{response.question_text}</p>
+                <p className="text-blue-600 capitalize">{response.response}</p>
+                <p className="text-sm text-gray-500">Score: {response.response_score}</p>
+              </div>
+            ))}
+            {(!selectedCompletedAssessment?.assessment_responses || selectedCompletedAssessment.assessment_responses.length === 0) && (
+              <p className="text-gray-500">No detailed responses available for this assessment.</p>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

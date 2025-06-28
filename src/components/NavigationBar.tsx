@@ -56,6 +56,8 @@ const NavigationBar = () => {
     await logout();
   };
 
+  const shouldShowUpgradeButton = !isAdmin && userTier === 'Free';
+
   return (
     <nav className="bg-white shadow-sm border-b">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -115,7 +117,7 @@ const NavigationBar = () => {
                 Help
               </Button>
               
-              {!isAdmin && userTier === 'Free' && (
+              {shouldShowUpgradeButton && (
                 <Button variant="outline" onClick={() => navigate('/upgrade')}>
                   Upgrade to Premium
                 </Button>
@@ -186,7 +188,7 @@ const NavigationBar = () => {
                 Help
               </Button>
               
-              {!isAdmin && userTier === 'Free' && (
+              {shouldShowUpgradeButton && (
                 <Button variant="outline" className="w-full" onClick={() => navigate('/upgrade')}>
                   Upgrade to Premium
                 </Button>
