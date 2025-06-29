@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -99,10 +100,10 @@ const Dashboard = () => {
     }
   };
 
-  const pieData = [
+  const pieData = useMemo(() => [
     { name: 'Free Users', value: stats.totalUsers - stats.totalPaidUsers, color: '#8884d8' },
     { name: 'Paid Users', value: stats.totalPaidUsers, color: '#82ca9d' }
-  ];
+  ], [stats.totalUsers, stats.totalPaidUsers]);
 
   if (loading || isLoading) {
     return (
@@ -116,70 +117,70 @@ const Dashboard = () => {
   }
 
   if (!isAdmin) {
-    return null; // Will redirect
+    return null;
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <NavigationBar />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Overview of your platform's performance</p>
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
+        <div className="mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Admin Dashboard</h1>
+          <p className="text-sm sm:text-base text-gray-600">Overview of your platform's performance</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+        <div className="grid gap-3 sm:gap-6 grid-cols-2 lg:grid-cols-4 mb-4 sm:mb-8">
+          <Card className="p-3 sm:p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Total Users</CardTitle>
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalUsers}</div>
+            <CardContent className="p-3 sm:p-6 pt-0">
+              <div className="text-lg sm:text-2xl font-bold">{stats.totalUsers}</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Paid Users</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
+          <Card className="p-3 sm:p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Paid Users</CardTitle>
+              <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalPaidUsers}</div>
+            <CardContent className="p-3 sm:p-6 pt-0">
+              <div className="text-lg sm:text-2xl font-bold">{stats.totalPaidUsers}</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg Assessments/User</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+          <Card className="p-3 sm:p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Avg Assessments/User</CardTitle>
+              <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.averageAssessments}</div>
+            <CardContent className="p-3 sm:p-6 pt-0">
+              <div className="text-lg sm:text-2xl font-bold">{stats.averageAssessments}</div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Growth</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <Card className="p-3 sm:p-0">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6">
+              <CardTitle className="text-xs sm:text-sm font-medium">Growth</CardTitle>
+              <TrendingUp className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">+12%</div>
+            <CardContent className="p-3 sm:p-6 pt-0">
+              <div className="text-lg sm:text-2xl font-bold">+12%</div>
             </CardContent>
           </Card>
         </div>
 
         {/* Charts */}
-        <div className="grid gap-6 md:grid-cols-2 mb-8">
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2 mb-4 sm:mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle>User Distribution</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">User Distribution</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="p-4 sm:p-6">
+              <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
                   <Pie
                     data={pieData}
@@ -202,11 +203,11 @@ const Dashboard = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Monthly Assessments</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-base sm:text-lg">Monthly Assessments</CardTitle>
             </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
+            <CardContent className="p-4 sm:p-6">
+              <ResponsiveContainer width="100%" height={250}>
                 <LineChart data={stats.monthlyAssessments}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" />
@@ -222,34 +223,36 @@ const Dashboard = () => {
 
         {/* Recent Assessments Table */}
         <Card>
-          <CardHeader>
-            <CardTitle>Recent Assessments</CardTitle>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Recent Assessments</CardTitle>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Assessment</TableHead>
-                  <TableHead>Score</TableHead>
-                  <TableHead>Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {stats.recentAssessments.map((assessment) => (
-                  <TableRow key={assessment.id}>
-                    <TableCell>
-                      {assessment.profiles?.full_name || assessment.profiles?.email || 'Unknown'}
-                    </TableCell>
-                    <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
-                    <TableCell>{assessment.total_score}/{assessment.max_possible_score} ({assessment.percentage_score}%)</TableCell>
-                    <TableCell>
-                      {new Date(assessment.created_at).toLocaleDateString()}
-                    </TableCell>
+          <CardContent className="p-2 sm:p-6">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="text-xs sm:text-sm">User</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Assessment</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Score</TableHead>
+                    <TableHead className="text-xs sm:text-sm">Date</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {stats.recentAssessments.map((assessment) => (
+                    <TableRow key={assessment.id}>
+                      <TableCell className="text-xs sm:text-sm">
+                        {assessment.profiles?.full_name || assessment.profiles?.email || 'Unknown'}
+                      </TableCell>
+                      <TableCell className="text-xs sm:text-sm">{assessment.form_assessments?.title || 'Unknown'}</TableCell>
+                      <TableCell className="text-xs sm:text-sm">{assessment.total_score}/{assessment.max_possible_score} ({assessment.percentage_score}%)</TableCell>
+                      <TableCell className="text-xs sm:text-sm">
+                        {new Date(assessment.created_at).toLocaleDateString()}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       </div>

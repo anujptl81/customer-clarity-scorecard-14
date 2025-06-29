@@ -69,23 +69,22 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseCh
   const isComplete = answeredQuestions === totalQuestions;
 
   const handlePayAndAssess = () => {
-    // Store responses in localStorage to pass to payment page
     localStorage.setItem('assessmentResponses', JSON.stringify(responses));
     navigate('/payment');
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-0">
       <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold text-gray-900">
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-xl sm:text-2xl font-bold text-gray-900">
             Self-Assessment Questions
           </CardTitle>
-          <div className="flex items-center justify-between">
-            <p className="text-gray-600">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+            <p className="text-sm sm:text-base text-gray-600">
               Progress: {answeredQuestions}/{totalQuestions} questions completed
             </p>
-            <div className="w-32 bg-gray-200 rounded-full h-2">
+            <div className="w-full sm:w-32 bg-gray-200 rounded-full h-2">
               <div 
                 className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${(answeredQuestions / totalQuestions) * 100}%` }}
@@ -93,33 +92,33 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseCh
             </div>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-8">
+        <CardContent className="p-4 sm:p-6">
+          <div className="space-y-6 sm:space-y-8">
             {questions.map((question) => (
-              <div key={question.id} className="space-y-4">
+              <div key={question.id} className="space-y-3 sm:space-y-4">
                 <div className="flex items-start space-x-3">
-                  <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-sm font-semibold">
+                  <span className="flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs sm:text-sm font-semibold">
                     {question.id}
                   </span>
-                  <p className="text-gray-800 font-medium leading-relaxed">
+                  <p className="text-sm sm:text-base text-gray-800 font-medium leading-relaxed">
                     {question.text}
                   </p>
                 </div>
                 
-                <div className="ml-11">
+                <div className="ml-8 sm:ml-11">
                   <RadioGroup
                     value={responses[question.id] || ''}
                     onValueChange={(value) => onResponseChange(question.id, value)}
-                    className="space-y-3"
+                    className="space-y-2 sm:space-y-3"
                   >
                     {responseOptions.map((option) => (
-                      <div key={option.value} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                      <div key={option.value} className="flex items-center space-x-2 sm:space-x-3 p-2 sm:p-3 rounded-lg hover:bg-gray-50 transition-colors">
                         <RadioGroupItem value={option.value} id={`q${question.id}-${option.value}`} />
                         <Label 
                           htmlFor={`q${question.id}-${option.value}`}
-                          className="flex items-center space-x-2 cursor-pointer flex-1"
+                          className="flex items-center space-x-2 cursor-pointer flex-1 text-sm sm:text-base"
                         >
-                          <option.icon className={`h-4 w-4 ${option.color}`} />
+                          <option.icon className={`h-3 w-3 sm:h-4 sm:w-4 ${option.color}`} />
                           <span className="text-gray-700">{option.label}</span>
                         </Label>
                       </div>
@@ -131,18 +130,18 @@ const AssessmentForm: React.FC<AssessmentFormProps> = ({ responses, onResponseCh
           </div>
           
           {isComplete && (
-            <div className="mt-8 text-center">
-              <Card className="max-w-md mx-auto bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
-                <CardContent className="p-6">
+            <div className="mt-6 sm:mt-8 text-center">
+              <Card className="max-w-sm sm:max-w-md mx-auto bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
+                <CardContent className="p-4 sm:p-6">
                   <div className="flex items-center justify-center mb-4">
-                    <CheckCircle2 className="h-8 w-8 text-green-600" />
+                    <CheckCircle2 className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
                   </div>
-                  <h3 className="font-semibold mb-2 text-gray-900">Assessment Complete!</h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <h3 className="font-semibold mb-2 text-gray-900 text-sm sm:text-base">Assessment Complete!</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 mb-4">
                     You've answered all questions. Proceed to payment to get your detailed results.
                   </p>
-                  <Button onClick={handlePayAndAssess} size="lg" className="w-full">
-                    <CreditCard className="h-4 w-4 mr-2" />
+                  <Button onClick={handlePayAndAssess} size="lg" className="w-full text-sm sm:text-base">
+                    <CreditCard className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                     Pay & Assess
                   </Button>
                 </CardContent>

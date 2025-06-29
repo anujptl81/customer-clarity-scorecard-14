@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ interface ResponseDetail {
 const Results = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [responses, setResponses] = useState<ResponseDetail[]>([]);
@@ -52,7 +54,6 @@ const Results = () => {
     if (assessmentId) {
       fetchResults();
     } else if (score && maxScore && percentage) {
-      // Handle results from URL parameters (for immediate display)
       setResult({
         id: 'temp',
         assessment_id: 'temp',
@@ -69,7 +70,6 @@ const Results = () => {
     if (!user || !assessmentId) return;
 
     try {
-      // Fetch the user assessment result
       const { data: assessmentData, error: assessmentError } = await supabase
         .from('user_assessments')
         .select(`
@@ -96,17 +96,19 @@ const Results = () => {
         assessment_description: assessmentData.form_assessments?.description
       });
 
-      // Fetch detailed responses
-      const { data: responsesData, error: responsesError } = await supabase
-        .from('assessment_responses')
-        .select('question_text, response, response_score')
-        .eq('user_id', user.id)
-        .order('created_at');
+      // Only fetch detailed responses for admins
+      if (isAdmin) {
+        const { data: responsesData, error: responsesError } = await supabase
+          .from('assessment_responses')
+          .select('question_text, response, response_score')
+          .eq('user_id', user.id)
+          .order('created_at');
 
-      if (responsesError) {
-        console.error('Error fetching responses:', responsesError);
-      } else {
-        setResponses(responsesData || []);
+        if (responsesError) {
+          console.error('Error fetching responses:', responsesError);
+        } else {
+          setResponses(responsesData || []);
+        }
       }
 
     } catch (error) {
@@ -205,79 +207,79 @@ const Results = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <NavigationBar />
       
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Assessment Results</h1>
-            <p className="text-gray-600">
+          <div className="text-center mb-4 sm:mb-8">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Assessment Results</h1>
+            <p className="text-sm sm:text-base text-gray-600 px-2">
               {result.assessment_title && `${result.assessment_title} • `}
               Completed on {new Date(result.completed_at).toLocaleDateString()}
             </p>
           </div>
 
           {/* Score Overview */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Trophy className="h-6 w-6 mr-2 text-yellow-500" />
+          <Card className="mb-4 sm:mb-8">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Trophy className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-yellow-500" />
                 Your Score
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                 <div className="text-center">
-                  <div className={`text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
+                  <div className={`text-3xl sm:text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
                     {result.total_score}
                   </div>
-                  <p className="text-gray-600">Total Points</p>
+                  <p className="text-sm sm:text-base text-gray-600">Total Points</p>
                 </div>
                 <div className="text-center">
-                  <div className={`text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
+                  <div className={`text-3xl sm:text-4xl font-bold ${getScoreColor(result.percentage_score)}`}>
                     {Math.round(result.percentage_score)}%
                   </div>
-                  <p className="text-gray-600">Percentage</p>
+                  <p className="text-sm sm:text-base text-gray-600">Percentage</p>
                 </div>
                 <div className="text-center">
-                  <Badge variant={scoreBadge.variant} className="text-lg px-4 py-2">
+                  <Badge variant={scoreBadge.variant} className="text-sm sm:text-lg px-3 py-1 sm:px-4 sm:py-2">
                     {scoreBadge.label}
                   </Badge>
-                  <p className="text-gray-600 mt-2">Performance Level</p>
+                  <p className="text-sm sm:text-base text-gray-600 mt-2">Performance Level</p>
                 </div>
               </div>
               
-              <div className="mt-6">
-                <div className="flex justify-between text-sm mb-2">
+              <div className="mt-4 sm:mt-6">
+                <div className="flex justify-between text-xs sm:text-sm mb-2">
                   <span>Progress</span>
                   <span>{result.total_score} / {result.max_possible_score} points</span>
                 </div>
-                <Progress value={result.percentage_score} className="h-3" />
+                <Progress value={result.percentage_score} className="h-2 sm:h-3" />
               </div>
             </CardContent>
           </Card>
 
           {/* Insights */}
-          <Card className="mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <TrendingUp className="h-6 w-6 mr-2 text-blue-500" />
+          <Card className="mb-4 sm:mb-8">
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" />
                 Insights & Recommendations
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-3 sm:space-y-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{insights.title}</h3>
-                  <p className="text-gray-600">{insights.description}</p>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">{insights.title}</h3>
+                  <p className="text-sm sm:text-base text-gray-600">{insights.description}</p>
                 </div>
                 
                 <div>
-                  <h4 className="font-medium text-gray-900 mb-2">Recommendations:</h4>
-                  <ul className="space-y-2">
+                  <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-2">Recommendations:</h4>
+                  <ul className="space-y-1 sm:space-y-2">
                     {insights.recommendations.map((rec, index) => (
                       <li key={index} className="flex items-start">
-                        <CheckCircle className="h-5 w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span className="text-gray-700">{rec}</span>
+                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
+                        <span className="text-sm sm:text-base text-gray-700">{rec}</span>
                       </li>
                     ))}
                   </ul>
@@ -286,24 +288,24 @@ const Results = () => {
             </CardContent>
           </Card>
 
-          {/* Detailed Responses */}
-          {responses.length > 0 && (
-            <Card className="mb-8">
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <BarChart3 className="h-6 w-6 mr-2 text-purple-500" />
-                  Response Details
+          {/* Admin-only Detailed Responses */}
+          {isAdmin && responses.length > 0 && (
+            <Card className="mb-4 sm:mb-8">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <BarChart3 className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-purple-500" />
+                  Response Details (Admin View)
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3 sm:space-y-4">
                   {responses.map((response, index) => (
-                    <div key={index} className="border-l-4 border-blue-200 pl-4">
-                      <h4 className="font-medium text-gray-900 mb-1">
+                    <div key={index} className="border-l-4 border-blue-200 pl-3 sm:pl-4">
+                      <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-1">
                         {index + 1}. {response.question_text}
                       </h4>
-                      <p className="text-gray-700 mb-1">Your answer: {response.response}</p>
-                      <Badge variant="outline">
+                      <p className="text-sm text-gray-700 mb-1">Your answer: {response.response}</p>
+                      <Badge variant="outline" className="text-xs">
                         {response.response_score} points
                       </Badge>
                     </div>
@@ -314,12 +316,12 @@ const Results = () => {
           )}
 
           {/* Actions */}
-          <div className="flex justify-center space-x-4">
-            <Button onClick={() => navigate('/')} variant="outline">
+          <div className="flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <Button onClick={() => navigate('/')} variant="outline" className="w-full sm:w-auto">
               <Home className="h-4 w-4 mr-2" />
               Back to Home
             </Button>
-            <Button onClick={() => navigate('/profile')}>
+            <Button onClick={() => navigate('/profile')} className="w-full sm:w-auto">
               <Target className="h-4 w-4 mr-2" />
               View All Results
             </Button>
