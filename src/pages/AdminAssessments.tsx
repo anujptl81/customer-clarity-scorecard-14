@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -18,10 +17,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Edit, Trash2, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Settings, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
+import ScoreRangeManager from '@/components/ScoreRangeManager';
 
 interface Assessment {
   id: string;
@@ -59,6 +59,8 @@ const AdminAssessments = () => {
   const [questionFormData, setQuestionFormData] = useState({
     question_text: ''
   });
+
+  const [showScoreRanges, setShowScoreRanges] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -443,6 +445,16 @@ const AdminAssessments = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => {
+                        setShowScoreRanges(showScoreRanges === assessment.id ? null : assessment.id);
+                      }}
+                    >
+                      <Target className="h-4 w-4 mr-1" />
+                      Score Ranges
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => toggleActive(assessment.id, assessment.is_active)}
                     >
                       {assessment.is_active ? 'Deactivate' : 'Activate'}
@@ -466,6 +478,15 @@ const AdminAssessments = () => {
                   </div>
                 </div>
               </CardContent>
+              
+              {/* Score Range Manager */}
+              {showScoreRanges === assessment.id && (
+                <ScoreRangeManager
+                  assessmentId={assessment.id}
+                  assessmentTitle={assessment.title}
+                  maxPossibleScore={assessment.total_questions * 2}
+                />
+              )}
             </Card>
           ))}
         </div>

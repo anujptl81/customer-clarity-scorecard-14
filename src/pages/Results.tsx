@@ -11,8 +11,6 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Trophy, 
   Target, 
-  TrendingUp, 
-  CheckCircle, 
   Home,
   BarChart3
 } from 'lucide-react';
@@ -36,6 +34,11 @@ interface ResponseDetail {
   response_score: number;
 }
 
+interface ScoreInterpretation {
+  status: string;
+  interpretation: string;
+}
+
 const Results = () => {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -43,6 +46,7 @@ const Results = () => {
   const navigate = useNavigate();
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [responses, setResponses] = useState<ResponseDetail[]>([]);
+  const [scoreInterpretation, setScoreInterpretation] = useState<ScoreInterpretation | null>(null);
   const [loading, setLoading] = useState(true);
 
   const assessmentId = searchParams.get('assessment');
@@ -96,6 +100,19 @@ const Results = () => {
         assessment_description: assessmentData.form_assessments?.description
       });
 
+      // Fetch score interpretation
+      const { data: scoreRangeData, error: scoreRangeError } = await supabase
+        .from('assessment_score_ranges')
+        .select('status, interpretation')
+        .eq('assessment_id', assessmentData.assessment_id)
+        .lte('min_score', assessmentData.total_score)
+        .gte('max_score', assessmentData.total_score)
+        .single();
+
+      if (!scoreRangeError && scoreRangeData) {
+        setScoreInterpretation(scoreRangeData);
+      }
+
       // Only fetch detailed responses for admins
       if (isAdmin) {
         const { data: responsesData, error: responsesError } = await supabase
@@ -134,50 +151,6 @@ const Results = () => {
     return { label: 'Needs Improvement', variant: 'destructive' as const };
   };
 
-  const getInsights = (percentage: number) => {
-    if (percentage >= 80) {
-      return {
-        title: 'Outstanding Performance!',
-        description: 'You demonstrate excellent understanding and readiness in this area.',
-        recommendations: [
-          'Continue leveraging your strengths',
-          'Consider sharing your knowledge with others',
-          'Look for advanced challenges in this domain'
-        ]
-      };
-    } else if (percentage >= 60) {
-      return {
-        title: 'Good Progress',
-        description: 'You show solid understanding with room for strategic improvement.',
-        recommendations: [
-          'Focus on areas where you scored lower',
-          'Seek additional resources for skill enhancement',
-          'Practice regularly to maintain momentum'
-        ]
-      };
-    } else if (percentage >= 40) {
-      return {
-        title: 'Room for Growth',
-        description: 'You have a foundation to build upon with focused effort.',
-        recommendations: [
-          'Identify specific knowledge gaps',
-          'Create a structured learning plan',
-          'Consider seeking mentorship or training'
-        ]
-      };
-    } else {
-      return {
-        title: 'Development Opportunity',
-        description: 'This assessment highlights areas that need immediate attention.',
-        recommendations: [
-          'Start with fundamental concepts',
-          'Break down learning into manageable steps',
-          'Consider formal training or courses'
-        ]
-      };
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -201,7 +174,6 @@ const Results = () => {
   }
 
   const scoreBadge = getScoreBadge(result.percentage_score);
-  const insights = getInsights(result.percentage_score);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -242,7 +214,7 @@ const Results = () => {
                 </div>
                 <div className="text-center">
                   <Badge variant={scoreBadge.variant} className="text-sm sm:text-lg px-3 py-1 sm:px-4 sm:py-2">
-                    {scoreBadge.label}
+                    {scoreInterpretation?.status || scoreBadge.label}
                   </Badge>
                   <p className="text-sm sm:text-base text-gray-600 mt-2">Performance Level</p>
                 </div>
@@ -258,35 +230,29 @@ const Results = () => {
             </CardContent>
           </Card>
 
-          {/* Insights */}
-          <Card className="mb-4 sm:mb-8">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="flex items-center text-lg sm:text-xl">
-                <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" />
-                Insights & Recommendations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">{insights.title}</h3>
-                  <p className="text-sm sm:text-base text-gray-600">{insights.description}</p>
+          {/* Custom Interpretation */}
+          {scoreInterpretation && (
+            <Card className="mb-4 sm:mb-8">
+              <CardHeader className="p-4 sm:p-6">
+                <CardTitle className="flex items-center text-lg sm:text-xl">
+                  <Target className="h-5 w-5 sm:h-6 sm:w-6 mr-2 text-blue-500" />
+                  Result Interpretation
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <div className="space-y-3 sm:space-y-4">
+                  <div>
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">
+                      {scoreInterpretation.status}
+                    </h3>
+                    <p className="text-sm sm:text-base text-gray-700 leading-relaxed">
+                      {scoreInterpretation.interpretation}
+                    </p>
+                  </div>
                 </div>
-                
-                <div>
-                  <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-2">Recommendations:</h4>
-                  <ul className="space-y-1 sm:space-y-2">
-                    {insights.recommendations.map((rec, index) => (
-                      <li key={index} className="flex items-start">
-                        <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                        <span className="text-sm sm:text-base text-gray-700">{rec}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Admin-only Detailed Responses */}
           {isAdmin && responses.length > 0 && (

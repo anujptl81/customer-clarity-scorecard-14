@@ -88,6 +88,47 @@ export type Database = {
           },
         ]
       }
+      assessment_score_ranges: {
+        Row: {
+          assessment_id: string
+          created_at: string
+          id: string
+          interpretation: string
+          max_score: number
+          min_score: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          created_at?: string
+          id?: string
+          interpretation: string
+          max_score: number
+          min_score: number
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          created_at?: string
+          id?: string
+          interpretation?: string
+          max_score?: number
+          min_score?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_score_ranges_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "form_assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_assessments: {
         Row: {
           created_at: string

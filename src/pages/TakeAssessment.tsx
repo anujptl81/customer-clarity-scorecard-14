@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, AlertCircle, XCircle, HelpCircle, ArrowLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationBar from '@/components/NavigationBar';
 
@@ -32,6 +34,7 @@ const TakeAssessment = () => {
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [availableAssessments, setAvailableAssessments] = useState<Assessment[]>([]);
 
   // Fixed options for all questions
   const questionOptions = [
@@ -44,6 +47,8 @@ const TakeAssessment = () => {
   useEffect(() => {
     if (id) {
       fetchAssessmentData();
+    } else {
+      fetchAvailableAssessments();
     }
   }, [id]);
 
@@ -90,6 +95,30 @@ const TakeAssessment = () => {
       console.error('Error:', error);
       toast.error('Failed to load assessment');
       navigate('/');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchAvailableAssessments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('form_assessments')
+        .select('*')
+        .eq('is_active', true)
+        .gt('total_questions', 0) // Only show assessments with questions
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching assessments:', error);
+        toast.error('Failed to load assessments');
+        return;
+      }
+
+      setAvailableAssessments(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Failed to load assessments');
     } finally {
       setLoading(false);
     }
