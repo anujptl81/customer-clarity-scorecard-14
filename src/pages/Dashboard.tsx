@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -62,9 +61,9 @@ const Dashboard = () => {
         .select('*', { count: 'exact', head: true })
         .neq('user_tier', 'Free');
 
-      // Fetch recent assessments
+      // Fetch recent user assessments
       const { data: recentAssessments } = await supabase
-        .from('assessments')
+        .from('user_assessments')
         .select(`
           *,
           profiles(full_name, email),
@@ -75,7 +74,7 @@ const Dashboard = () => {
 
       // Calculate average assessments per user
       const { count: totalAssessments } = await supabase
-        .from('assessments')
+        .from('user_assessments')
         .select('*', { count: 'exact', head: true });
 
       const averageAssessments = totalUsers ? (totalAssessments || 0) / totalUsers : 0;
@@ -243,7 +242,7 @@ const Dashboard = () => {
                       {assessment.profiles?.full_name || assessment.profiles?.email || 'Unknown'}
                     </TableCell>
                     <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
-                    <TableCell>{assessment.score}</TableCell>
+                    <TableCell>{assessment.total_score}/{assessment.max_possible_score} ({assessment.percentage_score}%)</TableCell>
                     <TableCell>
                       {new Date(assessment.created_at).toLocaleDateString()}
                     </TableCell>
