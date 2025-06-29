@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -8,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -35,10 +35,7 @@ interface Assessment {
 interface Question {
   id: string;
   question_text: string;
-  question_type: string;
   question_order: number;
-  options: any[] | null;
-  is_required: boolean;
 }
 
 const AdminAssessments = () => {
@@ -60,10 +57,7 @@ const AdminAssessments = () => {
   });
 
   const [questionFormData, setQuestionFormData] = useState({
-    question_text: '',
-    question_type: '',
-    options: [{ text: '', score: 0 }],
-    is_required: true
+    question_text: ''
   });
 
   useEffect(() => {
@@ -113,14 +107,10 @@ const AdminAssessments = () => {
         return;
       }
 
-      // Transform the data to match our Question interface
       const transformedQuestions = (data || []).map(item => ({
         id: item.id,
         question_text: item.question_text,
-        question_type: item.question_type,
-        question_order: item.question_order,
-        options: item.options ? (Array.isArray(item.options) ? item.options : JSON.parse(item.options as string)) : null,
-        is_required: item.is_required
+        question_order: item.question_order
       }));
 
       setQuestions(transformedQuestions);
@@ -187,8 +177,8 @@ const AdminAssessments = () => {
   const handleQuestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!questionFormData.question_text.trim() || !selectedAssessment || !questionFormData.question_type) {
-      toast.error('Question text and type are required');
+    if (!questionFormData.question_text.trim() || !selectedAssessment) {
+      toast.error('Question text is required');
       return;
     }
 
@@ -196,12 +186,7 @@ const AdminAssessments = () => {
       const questionData = {
         assessment_id: selectedAssessment.id,
         question_text: questionFormData.question_text,
-        question_type: questionFormData.question_type,
-        question_order: editingQuestion ? editingQuestion.question_order : questions.length + 1,
-        options: questionFormData.question_type === 'text' || questionFormData.question_type === 'textarea' 
-          ? null 
-          : questionFormData.options,
-        is_required: questionFormData.is_required
+        question_order: editingQuestion ? editingQuestion.question_order : questions.length + 1
       };
 
       if (editingQuestion) {
@@ -231,18 +216,6 @@ const AdminAssessments = () => {
         toast.success('Question created successfully');
       }
 
-      // Update assessment question count
-      const { error: updateError } = await supabase
-        .from('form_assessments')
-        .update({ 
-          total_questions: editingQuestion ? selectedAssessment.total_questions : selectedAssessment.total_questions + 1 
-        })
-        .eq('id', selectedAssessment.id);
-
-      if (updateError) {
-        console.error('Error updating question count:', updateError);
-      }
-
       resetQuestionForm();
       setIsQuestionDialogOpen(false);
       setEditingQuestion(null);
@@ -256,32 +229,7 @@ const AdminAssessments = () => {
 
   const resetQuestionForm = () => {
     setQuestionFormData({
-      question_text: '',
-      question_type: '',
-      options: [{ text: '', score: 0 }],
-      is_required: true
-    });
-  };
-
-  const handleQuestionTypeChange = (value: string) => {
-    setQuestionFormData(prev => {
-      const newFormData = { ...prev, question_type: value };
-      
-      // Set default options for single choice (radio)
-      if (value === 'radio') {
-        newFormData.options = [
-          { text: 'Yes', score: 2 },
-          { text: 'Partially In place', score: 1 },
-          { text: 'No', score: 0 },
-          { text: "Don't know", score: -1 }
-        ];
-      } else if (value === 'checkbox') {
-        newFormData.options = [{ text: '', score: 0 }];
-      } else {
-        newFormData.options = [];
-      }
-      
-      return newFormData;
+      question_text: ''
     });
   };
 
@@ -298,10 +246,7 @@ const AdminAssessments = () => {
   const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question);
     setQuestionFormData({
-      question_text: question.question_text,
-      question_type: question.question_type,
-      options: question.options || [{ text: '', score: 0 }],
-      is_required: question.is_required
+      question_text: question.question_text
     });
     setIsQuestionDialogOpen(true);
   };
@@ -349,18 +294,6 @@ const AdminAssessments = () => {
       }
 
       if (selectedAssessment) {
-        // Update assessment question count
-        const { error: updateError } = await supabase
-          .from('form_assessments')
-          .update({ 
-            total_questions: selectedAssessment.total_questions - 1 
-          })
-          .eq('id', selectedAssessment.id);
-
-        if (updateError) {
-          console.error('Error updating question count:', updateError);
-        }
-
         fetchQuestions(selectedAssessment.id);
         fetchAssessments();
       }
@@ -391,29 +324,6 @@ const AdminAssessments = () => {
       console.error('Error:', error);
       toast.error('Failed to update assessment status');
     }
-  };
-
-  const addOption = () => {
-    setQuestionFormData(prev => ({
-      ...prev,
-      options: [...prev.options, { text: '', score: 0 }]
-    }));
-  };
-
-  const updateOption = (index: number, field: string, value: any) => {
-    setQuestionFormData(prev => ({
-      ...prev,
-      options: prev.options.map((opt, i) => 
-        i === index ? { ...opt, [field]: value } : opt
-      )
-    }));
-  };
-
-  const removeOption = (index: number) => {
-    setQuestionFormData(prev => ({
-      ...prev,
-      options: prev.options.filter((_, i) => i !== index)
-    }));
   };
 
   if (loading || isLoading) {
@@ -578,10 +488,7 @@ const AdminAssessments = () => {
                 <Button onClick={() => {
                   setEditingQuestion(null);
                   setQuestionFormData({
-                    question_text: '',
-                    question_type: '',
-                    options: [{ text: '', score: 0 }],
-                    is_required: true
+                    question_text: ''
                   });
                   setIsQuestionDialogOpen(true);
                 }}>
@@ -601,18 +508,8 @@ const AdminAssessments = () => {
                             {index + 1}. {question.question_text}
                           </h4>
                           <p className="text-sm text-gray-500 mt-1">
-                            Type: {question.question_type} | Required: {question.is_required ? 'Yes' : 'No'}
+                            Answer Options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
                           </p>
-                          {question.options && (
-                            <div className="mt-2">
-                              <p className="text-sm font-medium">Options:</p>
-                              <ul className="text-sm text-gray-600 ml-4">
-                                {question.options.map((option: any, idx: number) => (
-                                  <li key={idx}>• {option.text} (Score: {option.score})</li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
                         </div>
                         <div className="flex space-x-2">
                           <Button
@@ -650,6 +547,9 @@ const AdminAssessments = () => {
               <DialogTitle>
                 {editingQuestion ? 'Edit Question' : 'Add New Question'}
               </DialogTitle>
+              <DialogDescription>
+                All questions will have 4 radio button options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
+              </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleQuestionSubmit} className="space-y-4">
               <div>
@@ -662,62 +562,6 @@ const AdminAssessments = () => {
                   required
                 />
               </div>
-
-              <div>
-                <Label htmlFor="question_type">Question Type</Label>
-                <Select
-                  value={questionFormData.question_type}
-                  onValueChange={handleQuestionTypeChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select question type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="radio">Single Choice (Radio)</SelectItem>
-                    <SelectItem value="checkbox">Multiple Choice (Checkbox)</SelectItem>
-                    <SelectItem value="text">Text Input</SelectItem>
-                    <SelectItem value="textarea">Long Text (Textarea)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {(questionFormData.question_type === 'radio' || questionFormData.question_type === 'checkbox') && (
-                <div>
-                  <Label>Answer Options</Label>
-                  <div className="space-y-2">
-                    {questionFormData.options.map((option, index) => (
-                      <div key={index} className="flex gap-2 items-center">
-                        <Input
-                          placeholder="Option text"
-                          value={option.text}
-                          onChange={(e) => updateOption(index, 'text', e.target.value)}
-                          className="flex-1"
-                        />
-                        <Input
-                          type="number"
-                          placeholder="Score"
-                          value={option.score}
-                          onChange={(e) => updateOption(index, 'score', parseInt(e.target.value) || 0)}
-                          className="w-20"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => removeOption(index)}
-                          disabled={questionFormData.options.length <= 1}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    <Button type="button" variant="outline" onClick={addOption}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Option
-                    </Button>
-                  </div>
-                </div>
-              )}
 
               <DialogFooter>
                 <Button 

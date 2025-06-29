@@ -6,9 +6,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
 import NavigationBar from '@/components/NavigationBar';
@@ -23,10 +20,7 @@ interface Assessment {
 interface Question {
   id: string;
   question_text: string;
-  question_type: string;
   question_order: number;
-  options: any[] | null;
-  is_required: boolean;
 }
 
 const TakeAssessment = () => {
@@ -35,9 +29,17 @@ const TakeAssessment = () => {
   const navigate = useNavigate();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [responses, setResponses] = useState<Record<string, any>>({});
+  const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  // Fixed options for all questions
+  const questionOptions = [
+    { text: 'Yes', score: 2 },
+    { text: 'Partially in place', score: 1 },
+    { text: 'No', score: 0 },
+    { text: "Don't know", score: -1 }
+  ];
 
   useEffect(() => {
     if (id) {
@@ -76,14 +78,10 @@ const TakeAssessment = () => {
         return;
       }
 
-      // Transform the data to match our Question interface
       const transformedQuestions = (questionsData || []).map(item => ({
         id: item.id,
         question_text: item.question_text,
-        question_type: item.question_type,
-        question_order: item.question_order,
-        options: item.options ? (typeof item.options === 'string' ? JSON.parse(item.options) : item.options) : null,
-        is_required: item.is_required
+        question_order: item.question_order
       }));
 
       console.log('Transformed questions:', transformedQuestions);
@@ -97,7 +95,7 @@ const TakeAssessment = () => {
     }
   };
 
-  const handleResponseChange = (questionId: string, value: any) => {
+  const handleResponseChange = (questionId: string, value: string) => {
     setResponses(prev => ({
       ...prev,
       [questionId]: value
@@ -107,27 +105,13 @@ const TakeAssessment = () => {
 
   const calculateScore = () => {
     let totalScore = 0;
-    let maxPossibleScore = 0;
+    const maxPossibleScore = questions.length * 2; // Max score per question is 2
     
     questions.forEach(question => {
       const response = responses[question.id];
-      
-      if (question.options && question.options.length > 0) {
-        // Calculate max possible score for this question
-        const maxQuestionScore = Math.max(...question.options.map((opt: any) => opt.score || 0));
-        maxPossibleScore += maxQuestionScore;
-        
-        if (response) {
-          if (question.question_type === 'radio') {
-            const option = question.options.find((opt: any) => opt.text === response);
-            if (option) totalScore += option.score || 0;
-          } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
-            response.forEach((selectedValue: string) => {
-              const option = question.options!.find((opt: any) => opt.text === selectedValue);
-              if (option) totalScore += option.score || 0;
-            });
-          }
-        }
+      if (response) {
+        const option = questionOptions.find(opt => opt.text === response);
+        if (option) totalScore += option.score;
       }
     });
     
@@ -137,16 +121,11 @@ const TakeAssessment = () => {
   const handleSubmit = async () => {
     if (!user || !assessment) return;
 
-    // Check if all required questions are answered
-    const unansweredRequired = questions.filter(q => 
-      q.is_required && (!responses[q.id] || 
-        (Array.isArray(responses[q.id]) && responses[q.id].length === 0) ||
-        (typeof responses[q.id] === 'string' && responses[q.id].trim() === '')
-      )
-    );
+    // Check if all questions are answered
+    const unansweredQuestions = questions.filter(q => !responses[q.id]);
     
-    if (unansweredRequired.length > 0) {
-      toast.error('Please answer all required questions before submitting');
+    if (unansweredQuestions.length > 0) {
+      toast.error('Please answer all questions before submitting');
       return;
     }
 
@@ -176,31 +155,20 @@ const TakeAssessment = () => {
       }
 
       // Create response records
-      const responseRecords = questions.map(question => ({
-        user_id: user.id,
-        question_uuid: question.id,
-        question_id: parseInt(question.question_order.toString()), // For backward compatibility
-        question_text: question.question_text,
-        response: Array.isArray(responses[question.id]) 
-          ? responses[question.id].join(', ') 
-          : responses[question.id] || '',
-        response_score: (() => {
-          const response = responses[question.id];
-          let questionScore = 0;
-          if (response && question.options) {
-            if (question.question_type === 'radio') {
-              const option = question.options.find((opt: any) => opt.text === response);
-              if (option) questionScore = option.score || 0;
-            } else if (question.question_type === 'checkbox' && Array.isArray(response)) {
-              response.forEach((selectedValue: string) => {
-                const option = question.options!.find((opt: any) => opt.text === selectedValue);
-                if (option) questionScore += option.score || 0;
-              });
-            }
-          }
-          return questionScore;
-        })()
-      }));
+      const responseRecords = questions.map(question => {
+        const response = responses[question.id] || '';
+        const option = questionOptions.find(opt => opt.text === response);
+        const responseScore = option ? option.score : 0;
+
+        return {
+          user_id: user.id,
+          question_uuid: question.id,
+          question_id: question.question_order,
+          question_text: question.question_text,
+          response: response,
+          response_score: responseScore
+        };
+      });
 
       const { error: responsesError } = await supabase
         .from('assessment_responses')
@@ -219,76 +187,6 @@ const TakeAssessment = () => {
       toast.error('Failed to submit assessment');
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const renderQuestion = (question: Question) => {
-    console.log('Rendering question:', question);
-    
-    switch (question.question_type) {
-      case 'radio':
-        return (
-          <RadioGroup
-            value={responses[question.id] || ''}
-            onValueChange={(value) => handleResponseChange(question.id, value)}
-          >
-            {question.options?.map((option: any, index: number) => (
-              <div key={index} className="flex items-center space-x-2">
-                <RadioGroupItem value={option.text} id={`${question.id}-${index}`} />
-                <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer">
-                  {option.text} {option.score !== undefined && <span className="text-gray-500">({option.score} pts)</span>}
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-        );
-
-      case 'checkbox':
-        return (
-          <div className="space-y-2">
-            {question.options?.map((option: any, index: number) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Checkbox
-                  id={`${question.id}-${index}`}
-                  checked={(responses[question.id] || []).includes(option.text)}
-                  onCheckedChange={(checked) => {
-                    const currentValues = responses[question.id] || [];
-                    if (checked) {
-                      handleResponseChange(question.id, [...currentValues, option.text]);
-                    } else {
-                      handleResponseChange(question.id, currentValues.filter((v: string) => v !== option.text));
-                    }
-                  }}
-                />
-                <Label htmlFor={`${question.id}-${index}`} className="cursor-pointer">
-                  {option.text} {option.score !== undefined && <span className="text-gray-500">({option.score} pts)</span>}
-                </Label>
-              </div>
-            ))}
-          </div>
-        );
-
-      case 'text':
-        return (
-          <Input
-            value={responses[question.id] || ''}
-            onChange={(e) => handleResponseChange(question.id, e.target.value)}
-            placeholder="Enter your answer"
-          />
-        );
-
-      case 'textarea':
-        return (
-          <Textarea
-            value={responses[question.id] || ''}
-            onChange={(e) => handleResponseChange(question.id, e.target.value)}
-            placeholder="Enter your detailed answer"
-            rows={4}
-          />
-        );
-
-      default:
-        return null;
     }
   };
 
@@ -324,7 +222,7 @@ const TakeAssessment = () => {
             <CardTitle className="text-2xl">{assessment.title}</CardTitle>
             <p className="text-gray-600">{assessment.description}</p>
             <p className="text-sm text-gray-500">
-              {questions.length} questions • Required fields marked with *
+              {questions.length} questions • All questions are required
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -332,9 +230,21 @@ const TakeAssessment = () => {
               <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-medium">
                   {index + 1}. {question.question_text}
-                  {question.is_required && <span className="text-red-500 ml-1">*</span>}
+                  <span className="text-red-500 ml-1">*</span>
                 </h3>
-                {renderQuestion(question)}
+                <RadioGroup
+                  value={responses[question.id] || ''}
+                  onValueChange={(value) => handleResponseChange(question.id, value)}
+                >
+                  {questionOptions.map((option, optionIndex) => (
+                    <div key={optionIndex} className="flex items-center space-x-2">
+                      <RadioGroupItem value={option.text} id={`${question.id}-${optionIndex}`} />
+                      <Label htmlFor={`${question.id}-${optionIndex}`} className="cursor-pointer">
+                        {option.text} <span className="text-gray-500">({option.score} pts)</span>
+                      </Label>
+                    </div>
+                  ))}
+                </RadioGroup>
               </div>
             ))}
             

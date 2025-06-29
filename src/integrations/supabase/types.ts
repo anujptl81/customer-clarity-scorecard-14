@@ -14,33 +14,24 @@ export type Database = {
           assessment_id: string
           created_at: string
           id: string
-          is_required: boolean
-          options: Json | null
           question_order: number
           question_text: string
-          question_type: string
           updated_at: string
         }
         Insert: {
           assessment_id: string
           created_at?: string
           id?: string
-          is_required?: boolean
-          options?: Json | null
           question_order: number
           question_text: string
-          question_type?: string
           updated_at?: string
         }
         Update: {
           assessment_id?: string
           created_at?: string
           id?: string
-          is_required?: boolean
-          options?: Json | null
           question_order?: number
           question_text?: string
-          question_type?: string
           updated_at?: string
         }
         Relationships: [
@@ -93,44 +84,6 @@ export type Database = {
             columns: ["question_uuid"]
             isOneToOne: false
             referencedRelation: "assessment_questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      assessments: {
-        Row: {
-          completed_at: string | null
-          created_at: string | null
-          date_formatted: string
-          form_assessment_id: string | null
-          id: string
-          score: number
-          user_id: string | null
-        }
-        Insert: {
-          completed_at?: string | null
-          created_at?: string | null
-          date_formatted: string
-          form_assessment_id?: string | null
-          id?: string
-          score: number
-          user_id?: string | null
-        }
-        Update: {
-          completed_at?: string | null
-          created_at?: string | null
-          date_formatted?: string
-          form_assessment_id?: string | null
-          id?: string
-          score?: number
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessments_form_assessment_id_fkey"
-            columns: ["form_assessment_id"]
-            isOneToOne: false
-            referencedRelation: "form_assessments"
             referencedColumns: ["id"]
           },
         ]

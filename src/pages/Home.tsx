@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -242,8 +243,8 @@ const Home = () => {
           </div>
         )}
 
-        {/* Previously Completed Assessments for non-admin users */}
-        {!isAdmin && (
+        {/* Previously Completed Assessments for all users */}
+        {(
           <Card className="mt-12">
             <CardHeader>
               <CardTitle>Previously Completed Assessments</CardTitle>
