@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -85,8 +84,7 @@ const Home = () => {
       const { data, error } = await supabase
         .from('form_assessments')
         .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
+        .eq('is_active', true);
 
       if (error) {
         console.error('Error fetching assessments:', error);
