@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -29,13 +30,13 @@ interface Assessment {
   description: string;
   total_questions: number;
   is_active: boolean;
-  created_at: string;
+  questions: Question[];
 }
 
 interface Question {
   id: string;
-  question_text: string;
-  question_order: number;
+  text: string;
+  order: number;
 }
 
 const AdminAssessments = () => {
@@ -47,7 +48,6 @@ const AdminAssessments = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
   const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [formData, setFormData] = useState({
@@ -78,7 +78,7 @@ const AdminAssessments = () => {
       const { data, error } = await supabase
         .from('form_assessments')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('id');
 
       if (error) {
         console.error('Error fetching assessments:', error);
@@ -86,39 +86,17 @@ const AdminAssessments = () => {
         return;
       }
 
-      setAssessments(data || []);
+      const transformedAssessments = (data || []).map(assessment => ({
+        ...assessment,
+        questions: Array.isArray(assessment.questions) ? assessment.questions : []
+      }));
+
+      setAssessments(transformedAssessments);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to fetch assessments');
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchQuestions = async (assessmentId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('assessment_questions')
-        .select('*')
-        .eq('assessment_id', assessmentId)
-        .order('question_order');
-
-      if (error) {
-        console.error('Error fetching questions:', error);
-        toast.error('Failed to fetch questions');
-        return;
-      }
-
-      const transformedQuestions = (data || []).map(item => ({
-        id: item.id,
-        question_text: item.question_text,
-        question_order: item.question_order
-      }));
-
-      setQuestions(transformedQuestions);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to fetch questions');
     }
   };
 
@@ -136,8 +114,7 @@ const AdminAssessments = () => {
           .from('form_assessments')
           .update({
             title: formData.title,
-            description: formData.description,
-            updated_at: new Date().toISOString()
+            description: formData.description
           })
           .eq('id', editingAssessment.id);
 
@@ -154,7 +131,8 @@ const AdminAssessments = () => {
           .insert({
             title: formData.title,
             description: formData.description,
-            total_questions: 0
+            total_questions: 0,
+            questions: []
           });
 
         if (error) {
@@ -185,44 +163,48 @@ const AdminAssessments = () => {
     }
 
     try {
-      const questionData = {
-        assessment_id: selectedAssessment.id,
-        question_text: questionFormData.question_text,
-        question_order: editingQuestion ? editingQuestion.question_order : questions.length + 1
-      };
-
+      let updatedQuestions;
+      
       if (editingQuestion) {
-        const { error } = await supabase
-          .from('assessment_questions')
-          .update(questionData)
-          .eq('id', editingQuestion.id);
-
-        if (error) {
-          console.error('Error updating question:', error);
-          toast.error('Failed to update question');
-          return;
-        }
-
-        toast.success('Question updated successfully');
+        // Update existing question
+        updatedQuestions = selectedAssessment.questions.map(q =>
+          q.id === editingQuestion.id
+            ? { ...q, text: questionFormData.question_text }
+            : q
+        );
       } else {
-        const { error } = await supabase
-          .from('assessment_questions')
-          .insert(questionData);
-
-        if (error) {
-          console.error('Error creating question:', error);
-          toast.error('Failed to create question');
-          return;
-        }
-
-        toast.success('Question created successfully');
+        // Add new question
+        const newQuestion = {
+          id: crypto.randomUUID(),
+          text: questionFormData.question_text,
+          order: selectedAssessment.questions.length + 1
+        };
+        updatedQuestions = [...selectedAssessment.questions, newQuestion];
       }
 
+      const { error } = await supabase
+        .from('form_assessments')
+        .update({
+          questions: updatedQuestions,
+          total_questions: updatedQuestions.length
+        })
+        .eq('id', selectedAssessment.id);
+
+      if (error) {
+        console.error('Error updating questions:', error);
+        toast.error('Failed to save question');
+        return;
+      }
+
+      toast.success(editingQuestion ? 'Question updated successfully' : 'Question created successfully');
+      
       resetQuestionForm();
       setIsQuestionDialogOpen(false);
       setEditingQuestion(null);
-      fetchQuestions(selectedAssessment.id);
       fetchAssessments();
+      
+      // Update selected assessment
+      setSelectedAssessment(prev => prev ? { ...prev, questions: updatedQuestions, total_questions: updatedQuestions.length } : null);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to save question');
@@ -248,7 +230,7 @@ const AdminAssessments = () => {
   const handleEditQuestion = (question: Question) => {
     setEditingQuestion(question);
     setQuestionFormData({
-      question_text: question.question_text
+      question_text: question.text
     });
     setIsQuestionDialogOpen(true);
   };
@@ -279,15 +261,22 @@ const AdminAssessments = () => {
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('Are you sure you want to delete this question?')) {
+    if (!confirm('Are you sure you want to delete this question?') || !selectedAssessment) {
       return;
     }
 
     try {
+      const updatedQuestions = selectedAssessment.questions
+        .filter(q => q.id !== questionId)
+        .map((q, index) => ({ ...q, order: index + 1 })); // Reorder questions
+
       const { error } = await supabase
-        .from('assessment_questions')
-        .delete()
-        .eq('id', questionId);
+        .from('form_assessments')
+        .update({
+          questions: updatedQuestions,
+          total_questions: updatedQuestions.length
+        })
+        .eq('id', selectedAssessment.id);
 
       if (error) {
         console.error('Error deleting question:', error);
@@ -295,10 +284,9 @@ const AdminAssessments = () => {
         return;
       }
 
-      if (selectedAssessment) {
-        fetchQuestions(selectedAssessment.id);
-        fetchAssessments();
-      }
+      // Update selected assessment
+      setSelectedAssessment(prev => prev ? { ...prev, questions: updatedQuestions, total_questions: updatedQuestions.length } : null);
+      fetchAssessments();
 
       toast.success('Question deleted successfully');
     } catch (error) {
@@ -428,16 +416,13 @@ const AdminAssessments = () => {
               <CardContent>
                 <div className="flex justify-between items-center">
                   <p className="text-sm text-gray-500">
-                    Created: {new Date(assessment.created_at).toLocaleDateString()}
+                    Questions: {assessment.questions.length}
                   </p>
                   <div className="flex space-x-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => {
-                        setSelectedAssessment(assessment);
-                        fetchQuestions(assessment.id);
-                      }}
+                      onClick={() => setSelectedAssessment(assessment)}
                     >
                       <Settings className="h-4 w-4 mr-1" />
                       Manage Questions
@@ -520,13 +505,13 @@ const AdminAssessments = () => {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {questions.map((question, index) => (
+                {selectedAssessment.questions.map((question, index) => (
                   <Card key={question.id}>
                     <CardContent className="pt-4">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h4 className="font-medium">
-                            {index + 1}. {question.question_text}
+                            {index + 1}. {question.text}
                           </h4>
                           <p className="text-sm text-gray-500 mt-1">
                             Answer Options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
@@ -552,7 +537,7 @@ const AdminAssessments = () => {
                     </CardContent>
                   </Card>
                 ))}
-                {questions.length === 0 && (
+                {selectedAssessment.questions.length === 0 && (
                   <p className="text-gray-500 text-center py-8">
                     No questions added yet. Click "Add Question" to get started.
                   </p>

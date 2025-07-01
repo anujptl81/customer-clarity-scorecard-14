@@ -7,9 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertCircle, XCircle, HelpCircle, ArrowLeft, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import NavigationBar from '@/components/NavigationBar';
 
@@ -18,12 +15,13 @@ interface Assessment {
   title: string;
   description: string;
   total_questions: number;
+  questions: Question[];
 }
 
 interface Question {
   id: string;
-  question_text: string;
-  question_order: number;
+  text: string;
+  order: number;
 }
 
 const TakeAssessment = () => {
@@ -31,11 +29,9 @@ const TakeAssessment = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [assessment, setAssessment] = useState<Assessment | null>(null);
-  const [questions, setQuestions] = useState<Question[]>([]);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [availableAssessments, setAvailableAssessments] = useState<Assessment[]>([]);
 
   // Fixed options for all questions
   const questionOptions = [
@@ -48,14 +44,12 @@ const TakeAssessment = () => {
   useEffect(() => {
     if (id) {
       fetchAssessmentData();
-    } else {
-      fetchAvailableAssessments();
     }
   }, [id]);
 
   const fetchAssessmentData = async () => {
     try {
-      // Fetch assessment details
+      // Fetch assessment details with questions
       const { data: assessmentData, error: assessmentError } = await supabase
         .from('form_assessments')
         .select('*')
@@ -70,56 +64,17 @@ const TakeAssessment = () => {
         return;
       }
 
-      setAssessment(assessmentData);
+      const transformedAssessment = {
+        ...assessmentData,
+        questions: Array.isArray(assessmentData.questions) ? assessmentData.questions : []
+      };
 
-      // Fetch questions
-      const { data: questionsData, error: questionsError } = await supabase
-        .from('assessment_questions')
-        .select('*')
-        .eq('assessment_id', id)
-        .order('question_order');
-
-      if (questionsError) {
-        console.error('Error fetching questions:', questionsError);
-        return;
-      }
-
-      const transformedQuestions = (questionsData || []).map(item => ({
-        id: item.id,
-        question_text: item.question_text,
-        question_order: item.question_order
-      }));
-
-      console.log('Transformed questions:', transformedQuestions);
-      setQuestions(transformedQuestions);
+      setAssessment(transformedAssessment);
+      console.log('Loaded assessment:', transformedAssessment);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to load assessment');
       navigate('/');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAvailableAssessments = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('form_assessments')
-        .select('*')
-        .eq('is_active', true)
-        .gt('total_questions', 0) // Only show assessments with questions
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        console.error('Error fetching assessments:', error);
-        toast.error('Failed to load assessments');
-        return;
-      }
-
-      setAvailableAssessments(data || []);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Failed to load assessments');
     } finally {
       setLoading(false);
     }
@@ -135,9 +90,9 @@ const TakeAssessment = () => {
 
   const calculateScore = () => {
     let totalScore = 0;
-    const maxPossibleScore = questions.length * 2; // Max score per question is 2
+    const maxPossibleScore = assessment!.questions.length * 2; // Max score per question is 2
     
-    questions.forEach(question => {
+    assessment!.questions.forEach(question => {
       const response = responses[question.id];
       if (response) {
         const option = questionOptions.find(opt => opt.text === response);
@@ -152,7 +107,7 @@ const TakeAssessment = () => {
     if (!user || !assessment) return;
 
     // Check if all questions are answered
-    const unansweredQuestions = questions.filter(q => !responses[q.id]);
+    const unansweredQuestions = assessment.questions.filter(q => !responses[q.id]);
     
     if (unansweredQuestions.length > 0) {
       toast.error('Please answer all questions before submitting');
@@ -167,12 +122,12 @@ const TakeAssessment = () => {
       
       // Convert responses to the new format: question_order -> response_score
       const responsesObject: Record<number, number> = {};
-      questions.forEach(question => {
+      assessment.questions.forEach(question => {
         const response = responses[question.id];
         if (response) {
           const option = questionOptions.find(opt => opt.text === response);
           if (option) {
-            responsesObject[question.question_order] = option.score;
+            responsesObject[question.order] = option.score;
           }
         }
       });
@@ -239,14 +194,14 @@ const TakeAssessment = () => {
             <CardTitle className="text-2xl">{assessment.title}</CardTitle>
             <p className="text-gray-600">{assessment.description}</p>
             <p className="text-sm text-gray-500">
-              {questions.length} questions • All questions are required
+              {assessment.questions.length} questions • All questions are required
             </p>
           </CardHeader>
           <CardContent className="space-y-6">
-            {questions.map((question, index) => (
+            {assessment.questions.map((question, index) => (
               <div key={question.id} className="space-y-3 p-4 bg-gray-50 rounded-lg">
                 <h3 className="text-lg font-medium">
-                  {index + 1}. {question.question_text}
+                  {index + 1}. {question.text}
                   <span className="text-red-500 ml-1">*</span>
                 </h3>
                 <RadioGroup

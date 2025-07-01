@@ -9,41 +9,6 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      assessment_questions: {
-        Row: {
-          assessment_id: string
-          created_at: string
-          id: string
-          question_order: number
-          question_text: string
-          updated_at: string
-        }
-        Insert: {
-          assessment_id: string
-          created_at?: string
-          id?: string
-          question_order: number
-          question_text: string
-          updated_at?: string
-        }
-        Update: {
-          assessment_id?: string
-          created_at?: string
-          id?: string
-          question_order?: number
-          question_text?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessment_questions_assessment_id_fkey"
-            columns: ["assessment_id"]
-            isOneToOne: false
-            referencedRelation: "form_assessments"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       assessment_score_ranges: {
         Row: {
           assessment_id: string
@@ -87,31 +52,28 @@ export type Database = {
       }
       form_assessments: {
         Row: {
-          created_at: string
           description: string | null
           id: string
           is_active: boolean
+          questions: Json | null
           title: string
           total_questions: number
-          updated_at: string
         }
         Insert: {
-          created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          questions?: Json | null
           title: string
           total_questions?: number
-          updated_at?: string
         }
         Update: {
-          created_at?: string
           description?: string | null
           id?: string
           is_active?: boolean
+          questions?: Json | null
           title?: string
           total_questions?: number
-          updated_at?: string
         }
         Relationships: []
       }

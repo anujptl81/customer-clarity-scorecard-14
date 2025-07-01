@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,8 +30,9 @@ interface AssessmentResult {
 }
 
 interface Question {
-  question_order: number;
-  question_text: string;
+  id: string;
+  text: string;
+  order: number;
 }
 
 interface ScoreInterpretation {
@@ -87,7 +89,8 @@ const Results = () => {
           *,
           form_assessments (
             title,
-            description
+            description,
+            questions
           )
         `)
         .eq('id', assessmentId)
@@ -101,12 +104,14 @@ const Results = () => {
         return;
       }
 
-      setResult({
+      const transformedResult: AssessmentResult = {
         ...assessmentData,
         assessment_title: assessmentData.form_assessments?.title,
         assessment_description: assessmentData.form_assessments?.description,
         responses: assessmentData.responses as Record<number, number> | undefined
-      });
+      };
+
+      setResult(transformedResult);
 
       // Fetch score interpretation
       const { data: scoreRangeData, error: scoreRangeError } = await supabase
@@ -122,16 +127,18 @@ const Results = () => {
       }
 
       // Only fetch questions for admins to show detailed responses
-      if (isAdmin && assessmentData.responses) {
-        const { data: questionsData, error: questionsError } = await supabase
-          .from('assessment_questions')
-          .select('question_order, question_text')
-          .eq('assessment_id', assessmentData.assessment_id)
-          .order('question_order');
-
-        if (!questionsError && questionsData) {
-          setQuestions(questionsData);
-        }
+      if (isAdmin && assessmentData.responses && assessmentData.form_assessments?.questions) {
+        const questionsArray = Array.isArray(assessmentData.form_assessments.questions) 
+          ? assessmentData.form_assessments.questions 
+          : [];
+        
+        const transformedQuestions = questionsArray.map((q: any) => ({
+          id: q.id,
+          text: q.text,
+          order: q.order
+        }));
+        
+        setQuestions(transformedQuestions);
       }
 
     } catch (error) {
@@ -277,13 +284,13 @@ const Results = () => {
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-3 sm:space-y-4">
                   {questions.map((question) => {
-                    const responseScore = result.responses?.[question.question_order];
+                    const responseScore = result.responses?.[question.order];
                     const responseText = responseScore !== undefined ? getResponseText(responseScore) : 'No response';
                     
                     return (
-                      <div key={question.question_order} className="border-l-4 border-blue-200 pl-3 sm:pl-4">
+                      <div key={question.id} className="border-l-4 border-blue-200 pl-3 sm:pl-4">
                         <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-1">
-                          {question.question_order}. {question.question_text}
+                          {question.order}. {question.text}
                         </h4>
                         <p className="text-sm text-gray-700 mb-1">Your answer: {responseText}</p>
                         <Badge variant="outline" className="text-xs">
