@@ -24,14 +24,14 @@ interface AssessmentResult {
   max_possible_score: number;
   percentage_score: number;
   completed_at: string;
+  responses?: Record<number, number>;
   assessment_title?: string;
   assessment_description?: string;
 }
 
-interface ResponseDetail {
+interface Question {
+  question_order: number;
   question_text: string;
-  response: string;
-  response_score: number;
 }
 
 interface ScoreInterpretation {
@@ -45,7 +45,7 @@ const Results = () => {
   const { isAdmin } = useUserRole();
   const navigate = useNavigate();
   const [result, setResult] = useState<AssessmentResult | null>(null);
-  const [responses, setResponses] = useState<ResponseDetail[]>([]);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [scoreInterpretation, setScoreInterpretation] = useState<ScoreInterpretation | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -53,6 +53,14 @@ const Results = () => {
   const score = searchParams.get('score');
   const maxScore = searchParams.get('maxScore');
   const percentage = searchParams.get('percentage');
+
+  // Response options mapping
+  const responseOptions = [
+    { score: 2, text: 'Yes' },
+    { score: 1, text: 'Partially in place' },
+    { score: 0, text: 'No' },
+    { score: -1, text: "Don't know" }
+  ];
 
   useEffect(() => {
     if (assessmentId) {
@@ -113,18 +121,16 @@ const Results = () => {
         setScoreInterpretation(scoreRangeData);
       }
 
-      // Only fetch detailed responses for admins
-      if (isAdmin) {
-        const { data: responsesData, error: responsesError } = await supabase
-          .from('assessment_responses')
-          .select('question_text, response, response_score')
-          .eq('user_id', user.id)
-          .order('created_at');
+      // Only fetch questions for admins to show detailed responses
+      if (isAdmin && assessmentData.responses) {
+        const { data: questionsData, error: questionsError } = await supabase
+          .from('assessment_questions')
+          .select('question_order, question_text')
+          .eq('assessment_id', assessmentData.assessment_id)
+          .order('question_order');
 
-        if (responsesError) {
-          console.error('Error fetching responses:', responsesError);
-        } else {
-          setResponses(responsesData || []);
+        if (!questionsError && questionsData) {
+          setQuestions(questionsData);
         }
       }
 
@@ -149,6 +155,11 @@ const Results = () => {
     if (percentage >= 60) return { label: 'Good', variant: 'secondary' as const };
     if (percentage >= 40) return { label: 'Average', variant: 'outline' as const };
     return { label: 'Needs Improvement', variant: 'destructive' as const };
+  };
+
+  const getResponseText = (score: number) => {
+    const option = responseOptions.find(opt => opt.score === score);
+    return option ? option.text : 'Unknown';
   };
 
   if (loading) {
@@ -255,7 +266,7 @@ const Results = () => {
           )}
 
           {/* Admin-only Detailed Responses */}
-          {isAdmin && responses.length > 0 && (
+          {isAdmin && result.responses && questions.length > 0 && (
             <Card className="mb-4 sm:mb-8">
               <CardHeader className="p-4 sm:p-6">
                 <CardTitle className="flex items-center text-lg sm:text-xl">
@@ -265,17 +276,22 @@ const Results = () => {
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
                 <div className="space-y-3 sm:space-y-4">
-                  {responses.map((response, index) => (
-                    <div key={index} className="border-l-4 border-blue-200 pl-3 sm:pl-4">
-                      <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-1">
-                        {index + 1}. {response.question_text}
-                      </h4>
-                      <p className="text-sm text-gray-700 mb-1">Your answer: {response.response}</p>
-                      <Badge variant="outline" className="text-xs">
-                        {response.response_score} points
-                      </Badge>
-                    </div>
-                  ))}
+                  {questions.map((question) => {
+                    const responseScore = result.responses?.[question.question_order];
+                    const responseText = responseScore !== undefined ? getResponseText(responseScore) : 'No response';
+                    
+                    return (
+                      <div key={question.question_order} className="border-l-4 border-blue-200 pl-3 sm:pl-4">
+                        <h4 className="text-sm sm:text-base font-medium text-gray-900 mb-1">
+                          {question.question_order}. {question.question_text}
+                        </h4>
+                        <p className="text-sm text-gray-700 mb-1">Your answer: {responseText}</p>
+                        <Badge variant="outline" className="text-xs">
+                          {responseScore !== undefined ? responseScore : 0} points
+                        </Badge>
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

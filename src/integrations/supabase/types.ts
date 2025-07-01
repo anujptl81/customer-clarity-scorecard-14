@@ -44,50 +44,6 @@ export type Database = {
           },
         ]
       }
-      assessment_responses: {
-        Row: {
-          assessment_id: string | null
-          created_at: string | null
-          id: string
-          question_id: number
-          question_text: string | null
-          question_uuid: string | null
-          response: string
-          response_score: number | null
-          user_id: string | null
-        }
-        Insert: {
-          assessment_id?: string | null
-          created_at?: string | null
-          id?: string
-          question_id: number
-          question_text?: string | null
-          question_uuid?: string | null
-          response: string
-          response_score?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          assessment_id?: string | null
-          created_at?: string | null
-          id?: string
-          question_id?: number
-          question_text?: string | null
-          question_uuid?: string | null
-          response?: string
-          response_score?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "assessment_responses_question_uuid_fkey"
-            columns: ["question_uuid"]
-            isOneToOne: false
-            referencedRelation: "assessment_questions"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       assessment_score_ranges: {
         Row: {
           assessment_id: string
@@ -197,6 +153,7 @@ export type Database = {
           id: string
           max_possible_score: number
           percentage_score: number
+          responses: Json | null
           total_score: number
           user_id: string
         }
@@ -207,6 +164,7 @@ export type Database = {
           id?: string
           max_possible_score?: number
           percentage_score?: number
+          responses?: Json | null
           total_score?: number
           user_id: string
         }
@@ -217,6 +175,7 @@ export type Database = {
           id?: string
           max_possible_score?: number
           percentage_score?: number
+          responses?: Json | null
           total_score?: number
           user_id?: string
         }

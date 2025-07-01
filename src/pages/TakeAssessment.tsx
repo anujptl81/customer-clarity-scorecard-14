@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -164,7 +165,19 @@ const TakeAssessment = () => {
       const { totalScore, maxPossibleScore } = calculateScore();
       const percentageScore = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
       
-      // Create user assessment record
+      // Convert responses to the new format: question_order -> response_score
+      const responsesObject: Record<number, number> = {};
+      questions.forEach(question => {
+        const response = responses[question.id];
+        if (response) {
+          const option = questionOptions.find(opt => opt.text === response);
+          if (option) {
+            responsesObject[question.question_order] = option.score;
+          }
+        }
+      });
+
+      // Create user assessment record with responses stored as JSON
       const { data: userAssessment, error: assessmentError } = await supabase
         .from('user_assessments')
         .insert({
@@ -172,7 +185,8 @@ const TakeAssessment = () => {
           assessment_id: assessment.id,
           total_score: totalScore,
           max_possible_score: maxPossibleScore,
-          percentage_score: Math.round(percentageScore * 100) / 100
+          percentage_score: Math.round(percentageScore * 100) / 100,
+          responses: responsesObject
         })
         .select()
         .single();
@@ -180,32 +194,6 @@ const TakeAssessment = () => {
       if (assessmentError) {
         console.error('Error creating user assessment:', assessmentError);
         toast.error('Failed to submit assessment');
-        return;
-      }
-
-      // Create response records
-      const responseRecords = questions.map(question => {
-        const response = responses[question.id] || '';
-        const option = questionOptions.find(opt => opt.text === response);
-        const responseScore = option ? option.score : 0;
-
-        return {
-          user_id: user.id,
-          question_uuid: question.id,
-          question_id: question.question_order,
-          question_text: question.question_text,
-          response: response,
-          response_score: responseScore
-        };
-      });
-
-      const { error: responsesError } = await supabase
-        .from('assessment_responses')
-        .insert(responseRecords);
-
-      if (responsesError) {
-        console.error('Error saving responses:', responsesError);
-        toast.error('Failed to save responses');
         return;
       }
 
