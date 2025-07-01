@@ -64,9 +64,15 @@ const TakeAssessment = () => {
         return;
       }
 
-      const transformedAssessment = {
+      const transformedAssessment: Assessment = {
         ...assessmentData,
-        questions: Array.isArray(assessmentData.questions) ? assessmentData.questions : []
+        questions: Array.isArray(assessmentData.questions) 
+          ? assessmentData.questions.map((q: any) => ({
+              id: q.id || '',
+              text: q.text || '',
+              order: q.order || 0
+            }))
+          : []
       };
 
       setAssessment(transformedAssessment);

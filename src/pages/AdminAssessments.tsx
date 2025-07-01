@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -86,9 +85,15 @@ const AdminAssessments = () => {
         return;
       }
 
-      const transformedAssessments = (data || []).map(assessment => ({
+      const transformedAssessments: Assessment[] = (data || []).map(assessment => ({
         ...assessment,
-        questions: Array.isArray(assessment.questions) ? assessment.questions : []
+        questions: Array.isArray(assessment.questions) 
+          ? assessment.questions.map((q: any) => ({
+              id: q.id || '',
+              text: q.text || '',
+              order: q.order || 0
+            }))
+          : []
       }));
 
       setAssessments(transformedAssessments);
