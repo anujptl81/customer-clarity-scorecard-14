@@ -31,6 +31,12 @@ interface UserProfileData {
   created_at: string;
 }
 
+interface Question {
+  id: string;
+  text: string;
+  order: number;
+}
+
 interface CompletedAssessment {
   id: string;
   total_score: number;
@@ -40,6 +46,7 @@ interface CompletedAssessment {
   responses?: Record<number, number>;
   form_assessments: {
     title: string;
+    questions?: Question[];
   };
 }
 
@@ -53,6 +60,14 @@ const UserProfile = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const itemsPerPage = 10;
+
+  // Response options mapping
+  const responseOptions = [
+    { score: 2, text: 'Yes' },
+    { score: 1, text: 'Partially in place' },
+    { score: 0, text: 'No' },
+    { score: -1, text: "Don't know" }
+  ];
 
   useEffect(() => {
     if (user) {
@@ -91,7 +106,7 @@ const UserProfile = () => {
         .from('user_assessments')
         .select(`
           *,
-          form_assessments(title)
+          form_assessments(title, questions)
         `)
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false });
@@ -102,9 +117,19 @@ const UserProfile = () => {
       }
 
       // Transform the data to match our interface
-      const transformedAssessments = (userAssessments || []).map(assessment => ({
+      const transformedAssessments: CompletedAssessment[] = (userAssessments || []).map(assessment => ({
         ...assessment,
-        responses: assessment.responses as Record<number, number> | undefined
+        responses: assessment.responses as Record<number, number> | undefined,
+        form_assessments: {
+          title: assessment.form_assessments?.title || 'Unknown',
+          questions: Array.isArray(assessment.form_assessments?.questions) 
+            ? assessment.form_assessments.questions.map((q: any) => ({
+                id: q.id || '',
+                text: q.text || '',
+                order: q.order || 0
+              }))
+            : []
+        }
       }));
 
       setCompletedAssessments(transformedAssessments);
@@ -118,6 +143,11 @@ const UserProfile = () => {
   const handleViewSummary = (assessment: CompletedAssessment) => {
     setSelectedAssessment(assessment);
     setIsDialogOpen(true);
+  };
+
+  const getResponseText = (score: number) => {
+    const option = responseOptions.find(opt => opt.score === score);
+    return option ? option.text : 'Unknown';
   };
 
   const paginatedAssessments = completedAssessments.slice(
@@ -353,13 +383,20 @@ const UserProfile = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
-            {selectedAssessment?.responses ? (
-              Object.entries(selectedAssessment.responses).map(([questionOrder, score]) => (
-                <div key={questionOrder} className="border-b pb-4">
-                  <p className="font-medium mb-2">Question {questionOrder}</p>
-                  <p className="text-blue-600">Score: {score}</p>
-                </div>
-              ))
+            {selectedAssessment?.responses && selectedAssessment?.form_assessments?.questions ? (
+              selectedAssessment.form_assessments.questions
+                .sort((a, b) => a.order - b.order)
+                .map((question) => {
+                  const responseScore = selectedAssessment.responses?.[question.order];
+                  const responseText = responseScore !== undefined ? getResponseText(responseScore) : 'No response';
+                  
+                  return (
+                    <div key={question.id} className="border-b pb-4">
+                      <p className="font-medium mb-2">Question {question.order}: {question.text}</p>
+                      <p className="text-blue-600">Selected: {responseText}</p>
+                    </div>
+                  );
+                })
             ) : (
               <p className="text-gray-500">No detailed responses available for this assessment.</p>
             )}

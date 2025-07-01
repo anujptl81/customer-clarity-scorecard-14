@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -31,6 +32,12 @@ interface Assessment {
   total_questions: number;
 }
 
+interface Question {
+  id: string;
+  text: string;
+  order: number;
+}
+
 interface CompletedAssessment {
   id: string;
   total_score: number;
@@ -40,6 +47,7 @@ interface CompletedAssessment {
   responses?: Record<number, number>;
   form_assessments: {
     title: string;
+    questions?: Question[];
   };
 }
 
@@ -55,6 +63,14 @@ const Home = () => {
   const [isCompletedDialogOpen, setIsCompletedDialogOpen] = useState(false);
   const [userTier, setUserTier] = useState('Free');
   const [loading, setLoading] = useState(true);
+
+  // Response options mapping
+  const responseOptions = [
+    { score: 2, text: 'Yes' },
+    { score: 1, text: 'Partially in place' },
+    { score: 0, text: 'No' },
+    { score: -1, text: "Don't know" }
+  ];
 
   useEffect(() => {
     fetchAssessments();
@@ -77,7 +93,16 @@ const Home = () => {
         return;
       }
 
-      setAssessments(data || []);
+      // Transform the data to match our Assessment interface
+      const transformedAssessments: Assessment[] = (data || []).map(assessment => ({
+        id: assessment.id,
+        title: assessment.title,
+        description: assessment.description || '',
+        total_questions: assessment.total_questions
+      }));
+
+      console.log('Fetched assessments:', transformedAssessments);
+      setAssessments(transformedAssessments);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -114,7 +139,7 @@ const Home = () => {
         .from('user_assessments')
         .select(`
           *,
-          form_assessments(title)
+          form_assessments(title, questions)
         `)
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false });
@@ -125,9 +150,19 @@ const Home = () => {
       }
 
       // Transform the data to match our interface
-      const transformedAssessments = (userAssessments || []).map(assessment => ({
+      const transformedAssessments: CompletedAssessment[] = (userAssessments || []).map(assessment => ({
         ...assessment,
-        responses: assessment.responses as Record<number, number> | undefined
+        responses: assessment.responses as Record<number, number> | undefined,
+        form_assessments: {
+          title: assessment.form_assessments?.title || 'Unknown',
+          questions: Array.isArray(assessment.form_assessments?.questions) 
+            ? assessment.form_assessments.questions.map((q: any) => ({
+                id: q.id || '',
+                text: q.text || '',
+                order: q.order || 0
+              }))
+            : []
+        }
       }));
 
       setCompletedAssessments(transformedAssessments);
@@ -155,6 +190,11 @@ const Home = () => {
   const handleViewCompletedSummary = (assessment: CompletedAssessment) => {
     setSelectedCompletedAssessment(assessment);
     setIsCompletedDialogOpen(true);
+  };
+
+  const getResponseText = (score: number) => {
+    const option = responseOptions.find(opt => opt.score === score);
+    return option ? option.text : 'Unknown';
   };
 
   if (loading) {
@@ -317,13 +357,20 @@ const Home = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
-            {selectedCompletedAssessment?.responses ? (
-              Object.entries(selectedCompletedAssessment.responses).map(([questionOrder, score]) => (
-                <div key={questionOrder} className="border-b pb-4">
-                  <p className="font-medium mb-2">Question {questionOrder}</p>
-                  <p className="text-blue-600">Score: {score}</p>
-                </div>
-              ))
+            {selectedCompletedAssessment?.responses && selectedCompletedAssessment?.form_assessments?.questions ? (
+              selectedCompletedAssessment.form_assessments.questions
+                .sort((a, b) => a.order - b.order)
+                .map((question) => {
+                  const responseScore = selectedCompletedAssessment.responses?.[question.order];
+                  const responseText = responseScore !== undefined ? getResponseText(responseScore) : 'No response';
+                  
+                  return (
+                    <div key={question.id} className="border-b pb-4">
+                      <p className="font-medium mb-2">Question {question.order}: {question.text}</p>
+                      <p className="text-blue-600">Selected: {responseText}</p>
+                    </div>
+                  );
+                })
             ) : (
               <p className="text-gray-500">No detailed responses available for this assessment.</p>
             )}
