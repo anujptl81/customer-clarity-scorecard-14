@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -38,10 +37,10 @@ interface CompletedAssessment {
   max_possible_score: number;
   percentage_score: number;
   completed_at: string;
+  responses?: Record<number, number>;
   form_assessments: {
     title: string;
   };
-  assessment_responses: any[];
 }
 
 const Home = () => {
@@ -125,26 +124,13 @@ const Home = () => {
         return;
       }
 
-      const assessmentsWithResponses = await Promise.all(
-        (userAssessments || []).map(async (assessment) => {
-          const { data: responses, error: responseError } = await supabase
-            .from('assessment_responses')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('question_uuid', assessment.assessment_id);
+      // Transform the data to match our interface
+      const transformedAssessments = (userAssessments || []).map(assessment => ({
+        ...assessment,
+        responses: assessment.responses as Record<number, number> | undefined
+      }));
 
-          if (responseError) {
-            console.error('Error fetching responses:', responseError);
-          }
-
-          return {
-            ...assessment,
-            assessment_responses: responses || []
-          };
-        })
-      );
-
-      setCompletedAssessments(assessmentsWithResponses);
+      setCompletedAssessments(transformedAssessments);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -244,64 +230,62 @@ const Home = () => {
         )}
 
         {/* Previously Completed Assessments for all users */}
-        {(
-          <Card className="mt-12">
-            <CardHeader>
-              <CardTitle>Previously Completed Assessments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {completedAssessments.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Assessment Name</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Actions</TableHead>
+        <Card className="mt-12">
+          <CardHeader>
+            <CardTitle>Previously Completed Assessments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {completedAssessments.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Assessment Name</TableHead>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Score</TableHead>
+                    <TableHead>Percentage</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {completedAssessments.slice(0, 5).map((assessment) => (
+                    <TableRow key={assessment.id}>
+                      <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
+                      <TableCell>
+                        {new Date(assessment.completed_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="link"
+                          onClick={() => handleViewCompletedSummary(assessment)}
+                          className="p-0 h-auto"
+                        >
+                          View Summary
+                        </Button>
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {completedAssessments.slice(0, 5).map((assessment) => (
-                      <TableRow key={assessment.id}>
-                        <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
-                        <TableCell>
-                          {new Date(assessment.completed_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            onClick={() => handleViewCompletedSummary(assessment)}
-                            className="p-0 h-auto"
-                          >
-                            View Summary
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No assessments completed yet.</p>
-                </div>
-              )}
-              {completedAssessments.length > 5 && (
-                <div className="mt-4 text-center">
-                  <Button variant="outline" onClick={() => navigate('/profile')}>
-                    View All Completed Assessments
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No assessments completed yet.</p>
+              </div>
+            )}
+            {completedAssessments.length > 5 && (
+              <div className="mt-4 text-center">
+                <Button variant="outline" onClick={() => navigate('/profile')}>
+                  View All Completed Assessments
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -333,14 +317,14 @@ const Home = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
-            {selectedCompletedAssessment?.assessment_responses?.map((response, index) => (
-              <div key={index} className="border-b pb-4">
-                <p className="font-medium mb-2">{response.question_text}</p>
-                <p className="text-blue-600 capitalize">{response.response}</p>
-                <p className="text-sm text-gray-500">Score: {response.response_score}</p>
-              </div>
-            ))}
-            {(!selectedCompletedAssessment?.assessment_responses || selectedCompletedAssessment.assessment_responses.length === 0) && (
+            {selectedCompletedAssessment?.responses ? (
+              Object.entries(selectedCompletedAssessment.responses).map(([questionOrder, score]) => (
+                <div key={questionOrder} className="border-b pb-4">
+                  <p className="font-medium mb-2">Question {questionOrder}</p>
+                  <p className="text-blue-600">Score: {score}</p>
+                </div>
+              ))
+            ) : (
               <p className="text-gray-500">No detailed responses available for this assessment.</p>
             )}
           </div>

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -105,7 +104,8 @@ const Results = () => {
       setResult({
         ...assessmentData,
         assessment_title: assessmentData.form_assessments?.title,
-        assessment_description: assessmentData.form_assessments?.description
+        assessment_description: assessmentData.form_assessments?.description,
+        responses: assessmentData.responses as Record<number, number> | undefined
       });
 
       // Fetch score interpretation

@@ -37,10 +37,10 @@ interface CompletedAssessment {
   max_possible_score: number;
   percentage_score: number;
   completed_at: string;
+  responses?: Record<number, number>;
   form_assessments: {
     title: string;
   };
-  assessment_responses: any[];
 }
 
 const UserProfile = () => {
@@ -101,27 +101,13 @@ const UserProfile = () => {
         return;
       }
 
-      // For each assessment, fetch the responses
-      const assessmentsWithResponses = await Promise.all(
-        (userAssessments || []).map(async (assessment) => {
-          const { data: responses, error: responseError } = await supabase
-            .from('assessment_responses')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('question_uuid', assessment.assessment_id);
+      // Transform the data to match our interface
+      const transformedAssessments = (userAssessments || []).map(assessment => ({
+        ...assessment,
+        responses: assessment.responses as Record<number, number> | undefined
+      }));
 
-          if (responseError) {
-            console.error('Error fetching responses:', responseError);
-          }
-
-          return {
-            ...assessment,
-            assessment_responses: responses || []
-          };
-        })
-      );
-
-      setCompletedAssessments(assessmentsWithResponses);
+      setCompletedAssessments(transformedAssessments);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -367,14 +353,14 @@ const UserProfile = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
-            {selectedAssessment?.assessment_responses?.map((response, index) => (
-              <div key={index} className="border-b pb-4">
-                <p className="font-medium mb-2">{response.question_text}</p>
-                <p className="text-blue-600 capitalize">{response.response}</p>
-                <p className="text-sm text-gray-500">Score: {response.response_score}</p>
-              </div>
-            ))}
-            {(!selectedAssessment?.assessment_responses || selectedAssessment.assessment_responses.length === 0) && (
+            {selectedAssessment?.responses ? (
+              Object.entries(selectedAssessment.responses).map(([questionOrder, score]) => (
+                <div key={questionOrder} className="border-b pb-4">
+                  <p className="font-medium mb-2">Question {questionOrder}</p>
+                  <p className="text-blue-600">Score: {score}</p>
+                </div>
+              ))
+            ) : (
               <p className="text-gray-500">No detailed responses available for this assessment.</p>
             )}
           </div>
