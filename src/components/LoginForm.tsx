@@ -11,7 +11,8 @@ import { toast } from 'sonner';
 const LoginForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const { login, signUp, loginWithGoogle, isLoading } = useAuth();
 
@@ -19,7 +20,7 @@ const LoginForm = () => {
     e.preventDefault();
     
     if (isSignUp) {
-      const { error } = await signUp(email, password, fullName);
+      const { error } = await signUp(email, password, firstName, lastName);
       if (error) {
         toast.error(error.message);
       } else {
@@ -52,20 +53,37 @@ const LoginForm = () => {
       <CardContent className="space-y-6">
         <form onSubmit={handleEmailAuth} className="space-y-4">
           {isSignUp && (
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <div className="relative">
-                <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                <Input
-                  id="fullName"
-                  type="text"
-                  placeholder="Enter your full name"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  className="pl-10"
-                />
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="firstName"
+                    type="text"
+                    placeholder="Enter your first name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="pl-10"
+                    required
+                  />
+                </div>
               </div>
-            </div>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                  <Input
+                    id="lastName"
+                    type="text"
+                    placeholder="Enter your last name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+            </>
           )}
           
           <div className="space-y-2">

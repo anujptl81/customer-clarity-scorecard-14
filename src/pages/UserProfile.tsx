@@ -10,7 +10,8 @@ import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 
 interface UserProfileData {
-  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
   email: string;
   user_tier: string;
   created_at: string;
@@ -145,8 +146,13 @@ const UserProfile = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm font-medium text-gray-500">Full Name</label>
-                <p className="text-base md:text-lg break-words">{profile?.full_name || 'Not provided'}</p>
+                <label className="text-sm font-medium text-gray-500">Name</label>
+                <p className="text-base md:text-lg break-words">
+                  {profile?.first_name || profile?.last_name 
+                    ? `${profile?.first_name || ''} ${profile?.last_name || ''}`.trim()
+                    : 'Not provided'
+                  }
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Email</label>

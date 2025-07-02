@@ -7,7 +7,7 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   login: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string, fullName?: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, firstName?: string, lastName?: string) => Promise<{ error: any }>;
   loginWithGoogle: () => Promise<{ error: any }>;
   logout: () => Promise<void>;
   isLoading: boolean;
@@ -48,7 +48,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName?: string) => {
+  const signUp = async (email: string, password: string, firstName?: string, lastName?: string) => {
     setIsLoading(true);
     const redirectUrl = `${window.location.origin}/`;
     
@@ -57,7 +57,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: fullName ? { full_name: fullName } : undefined
+        data: (firstName || lastName) ? { 
+          first_name: firstName || '', 
+          last_name: lastName || '' 
+        } : undefined
       }
     });
     

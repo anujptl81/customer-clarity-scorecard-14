@@ -30,7 +30,8 @@ import NavigationBar from '@/components/NavigationBar';
 interface UserProfile {
   id: string;
   email: string;
-  full_name: string | null;
+  first_name: string | null;
+  last_name: string | null;
   user_tier: string;
   created_at: string;
   role?: string;
@@ -122,7 +123,8 @@ const ManageUsers = () => {
     if (searchTerm) {
       filtered = filtered.filter(user => 
         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (user.full_name && user.full_name.toLowerCase().includes(searchTerm.toLowerCase()))
+        (user.first_name && user.first_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.last_name && user.last_name.toLowerCase().includes(searchTerm.toLowerCase()))
       );
     }
 
@@ -262,7 +264,12 @@ const ManageUsers = () => {
                     <TableRow key={userData.id}>
                       <TableCell>
                         <div className="min-w-0">
-                          <div className="font-medium truncate">{userData.full_name || 'No name'}</div>
+                          <div className="font-medium truncate">
+                            {userData.first_name || userData.last_name 
+                              ? `${userData.first_name || ''} ${userData.last_name || ''}`.trim()
+                              : 'No name'
+                            }
+                          </div>
                           <div className="text-sm text-gray-500 truncate">{userData.email}</div>
                         </div>
                       </TableCell>

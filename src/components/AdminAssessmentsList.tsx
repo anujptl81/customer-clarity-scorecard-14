@@ -41,7 +41,8 @@ interface CompletedAssessment {
     questions?: Question[];
   };
   user_profile?: {
-    full_name: string;
+    first_name: string | null;
+    last_name: string | null;
     email: string;
   };
 }
@@ -107,7 +108,7 @@ const AdminAssessmentsList = () => {
       // Fetch user profiles separately
       const { data: profiles, error: profileError } = await supabase
         .from('profiles')
-        .select('id, full_name, email')
+        .select('id, first_name, last_name, email')
         .in('id', userIds);
 
       if (profileError) {
@@ -125,7 +126,7 @@ const AdminAssessmentsList = () => {
       const transformedAssessments: CompletedAssessment[] = userAssessments
         .filter(assessment => {
           const userProfile = profileMap.get(assessment.user_id);
-          return userProfile && userProfile.full_name && userProfile.email;
+          return userProfile && userProfile.email;
         })
         .map(assessment => {
           const userProfile = profileMap.get(assessment.user_id);
@@ -144,7 +145,8 @@ const AdminAssessmentsList = () => {
                 : []
             },
             user_profile: {
-              full_name: userProfile?.full_name || 'Unknown User',
+              first_name: userProfile?.first_name || null,
+              last_name: userProfile?.last_name || null,
               email: userProfile?.email || 'No Email'
             }
           };
@@ -210,7 +212,12 @@ const AdminAssessmentsList = () => {
                       <TableRow key={assessment.id}>
                         <TableCell>
                           <div className="min-w-0">
-                            <div className="font-medium truncate">{assessment.user_profile?.full_name}</div>
+                            <div className="font-medium truncate">
+                              {assessment.user_profile?.first_name || assessment.user_profile?.last_name 
+                                ? `${assessment.user_profile?.first_name || ''} ${assessment.user_profile?.last_name || ''}`.trim()
+                                : 'Unknown User'
+                              }
+                            </div>
                             <div className="text-sm text-gray-500 truncate">{assessment.user_profile?.email}</div>
                           </div>
                         </TableCell>
@@ -300,7 +307,10 @@ const AdminAssessmentsList = () => {
             <DialogDescription>
               {selectedAssessment?.form_assessments?.title} - Score: {selectedAssessment?.total_score}/{selectedAssessment?.max_possible_score} ({Math.round(selectedAssessment?.percentage_score || 0)}%)
               <br />
-              User: {selectedAssessment?.user_profile?.full_name} ({selectedAssessment?.user_profile?.email})
+              User: {selectedAssessment?.user_profile?.first_name || selectedAssessment?.user_profile?.last_name 
+                ? `${selectedAssessment?.user_profile?.first_name || ''} ${selectedAssessment?.user_profile?.last_name || ''}`.trim()
+                : 'Unknown User'
+              } ({selectedAssessment?.user_profile?.email})
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
