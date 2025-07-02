@@ -249,7 +249,7 @@ const Home = () => {
                     disabled={userTier === 'Free' && !isAdmin}
                     onClick={() => handleProceedWithAssessment(assessment)}
                   >
-                    Proceed with Assessment: {assessment.title}
+                    Proceed with Assessment
                   </Button>
                   
                   {userTier === 'Free' && !isAdmin && (
