@@ -35,11 +35,12 @@ interface CompletedAssessment {
   percentage_score: number;
   completed_at: string;
   responses?: Record<number, number>;
+  user_id: string;
   form_assessments: {
     title: string;
     questions?: Question[];
   };
-  profiles: {
+  user_profile?: {
     full_name: string;
     email: string;
   };
@@ -79,12 +80,12 @@ const AdminAssessmentsList = () => {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
 
+      // First, get the user assessments with form details
       const { data: userAssessments, error: assessmentError, count } = await supabase
         .from('user_assessments')
         .select(`
           *,
-          form_assessments(title, questions),
-          profiles(full_name, email)
+          form_assessments(title, questions)
         `, { count: 'exact' })
         .order('completed_at', { ascending: false })
         .range(from, to);
@@ -94,25 +95,55 @@ const AdminAssessmentsList = () => {
         return;
       }
 
+      if (!userAssessments || userAssessments.length === 0) {
+        setCompletedAssessments([]);
+        setTotalPages(0);
+        return;
+      }
+
+      // Get unique user IDs
+      const userIds = [...new Set(userAssessments.map(assessment => assessment.user_id))];
+
+      // Fetch user profiles separately
+      const { data: profiles, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds);
+
+      if (profileError) {
+        console.error('Error fetching profiles:', profileError);
+        return;
+      }
+
+      // Create a map of user profiles for quick lookup
+      const profileMap = new Map();
+      profiles?.forEach(profile => {
+        profileMap.set(profile.id, profile);
+      });
+
       // Transform the data to match our interface
-      const transformedAssessments: CompletedAssessment[] = (userAssessments || []).map(assessment => ({
-        ...assessment,
-        responses: assessment.responses as Record<number, number> | undefined,
-        form_assessments: {
-          title: assessment.form_assessments?.title || 'Unknown',
-          questions: Array.isArray(assessment.form_assessments?.questions) 
-            ? assessment.form_assessments.questions.map((q: any) => ({
-                id: q.id || '',
-                text: q.text || '',
-                order: q.order || 0
-              }))
-            : []
-        },
-        profiles: {
-          full_name: assessment.profiles?.full_name || 'Unknown User',
-          email: assessment.profiles?.email || 'No Email'
-        }
-      }));
+      const transformedAssessments: CompletedAssessment[] = userAssessments.map(assessment => {
+        const userProfile = profileMap.get(assessment.user_id);
+        
+        return {
+          ...assessment,
+          responses: assessment.responses as Record<number, number> | undefined,
+          form_assessments: {
+            title: assessment.form_assessments?.title || 'Unknown',
+            questions: Array.isArray(assessment.form_assessments?.questions) 
+              ? assessment.form_assessments.questions.map((q: any) => ({
+                  id: q.id || '',
+                  text: q.text || '',
+                  order: q.order || 0
+                }))
+              : []
+          },
+          user_profile: {
+            full_name: userProfile?.full_name || 'Unknown User',
+            email: userProfile?.email || 'No Email'
+          }
+        };
+      });
 
       setCompletedAssessments(transformedAssessments);
       setTotalPages(Math.ceil((count || 0) / itemsPerPage));
@@ -173,8 +204,8 @@ const AdminAssessmentsList = () => {
                     <TableRow key={assessment.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{assessment.profiles.full_name}</div>
-                          <div className="text-sm text-gray-500">{assessment.profiles.email}</div>
+                          <div className="font-medium">{assessment.user_profile?.full_name}</div>
+                          <div className="text-sm text-gray-500">{assessment.user_profile?.email}</div>
                         </div>
                       </TableCell>
                       <TableCell>{assessment.form_assessments.title}</TableCell>
@@ -254,7 +285,7 @@ const AdminAssessmentsList = () => {
             <DialogDescription>
               {selectedAssessment?.form_assessments?.title} - Score: {selectedAssessment?.total_score}/{selectedAssessment?.max_possible_score} ({Math.round(selectedAssessment?.percentage_score || 0)}%)
               <br />
-              User: {selectedAssessment?.profiles?.full_name} ({selectedAssessment?.profiles?.email})
+              User: {selectedAssessment?.user_profile?.full_name} ({selectedAssessment?.user_profile?.email})
             </DialogDescription>
           </DialogHeader>
           <div className="mt-4 space-y-4">
