@@ -46,7 +46,8 @@ const AdminAssessments = () => {
   const [loading, setLoading] = useState(true);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingAssessment, setEditingAssessment] = useState<Assessment | null>(null);
-  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+  const [managingQuestionsId, setManagingQuestionsId] = useState<string | null>(null);
+  const [showScoreRanges, setShowScoreRanges] = useState<string | null>(null);
   const [isQuestionDialogOpen, setIsQuestionDialogOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [formData, setFormData] = useState({
@@ -58,8 +59,6 @@ const AdminAssessments = () => {
   const [questionFormData, setQuestionFormData] = useState({
     question_text: ''
   });
-
-  const [showScoreRanges, setShowScoreRanges] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
@@ -162,23 +161,24 @@ const AdminAssessments = () => {
   const handleQuestionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!questionFormData.question_text.trim() || !selectedAssessment) {
+    if (!questionFormData.question_text.trim() || !managingQuestionsId) {
       toast.error('Question text is required');
       return;
     }
+
+    const selectedAssessment = assessments.find(a => a.id === managingQuestionsId);
+    if (!selectedAssessment) return;
 
     try {
       let updatedQuestions;
       
       if (editingQuestion) {
-        // Update existing question
         updatedQuestions = selectedAssessment.questions.map(q =>
           q.id === editingQuestion.id
             ? { ...q, text: questionFormData.question_text }
             : q
         );
       } else {
-        // Add new question
         const newQuestion = {
           id: crypto.randomUUID(),
           text: questionFormData.question_text,
@@ -207,9 +207,6 @@ const AdminAssessments = () => {
       setIsQuestionDialogOpen(false);
       setEditingQuestion(null);
       fetchAssessments();
-      
-      // Update selected assessment
-      setSelectedAssessment(prev => prev ? { ...prev, questions: updatedQuestions, total_questions: updatedQuestions.length } : null);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Failed to save question');
@@ -266,14 +263,17 @@ const AdminAssessments = () => {
   };
 
   const handleDeleteQuestion = async (questionId: string) => {
-    if (!confirm('Are you sure you want to delete this question?') || !selectedAssessment) {
+    if (!confirm('Are you sure you want to delete this question?') || !managingQuestionsId) {
       return;
     }
+
+    const selectedAssessment = assessments.find(a => a.id === managingQuestionsId);
+    if (!selectedAssessment) return;
 
     try {
       const updatedQuestions = selectedAssessment.questions
         .filter(q => q.id !== questionId)
-        .map((q, index) => ({ ...q, order: index + 1 })); // Reorder questions
+        .map((q, index) => ({ ...q, order: index + 1 }));
 
       const { error } = await supabase
         .from('form_assessments')
@@ -289,10 +289,7 @@ const AdminAssessments = () => {
         return;
       }
 
-      // Update selected assessment
-      setSelectedAssessment(prev => prev ? { ...prev, questions: updatedQuestions, total_questions: updatedQuestions.length } : null);
       fetchAssessments();
-
       toast.success('Question deleted successfully');
     } catch (error) {
       console.error('Error:', error);
@@ -401,75 +398,143 @@ const AdminAssessments = () => {
 
         <div className="grid gap-6">
           {assessments.map((assessment) => (
-            <Card key={assessment.id}>
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl">{assessment.title}</CardTitle>
-                    <p className="text-gray-600 mt-1">{assessment.description}</p>
+            <div key={assessment.id} className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-xl">{assessment.title}</CardTitle>
+                      <p className="text-gray-600 mt-1">{assessment.description}</p>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Badge variant={assessment.is_active ? "default" : "secondary"}>
+                        {assessment.is_active ? 'Active' : 'Inactive'}
+                      </Badge>
+                      <Badge variant="outline">
+                        {assessment.total_questions} Questions
+                      </Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge variant={assessment.is_active ? "default" : "secondary"}>
-                      {assessment.is_active ? 'Active' : 'Inactive'}
-                    </Badge>
-                    <Badge variant="outline">
-                      {assessment.total_questions} Questions
-                    </Badge>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex justify-between items-center">
+                    <p className="text-sm text-gray-500">
+                      Questions: {assessment.questions.length}
+                    </p>
+                    <div className="flex space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setManagingQuestionsId(managingQuestionsId === assessment.id ? null : assessment.id);
+                          setShowScoreRanges(null);
+                        }}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        Manage Questions
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setShowScoreRanges(showScoreRanges === assessment.id ? null : assessment.id);
+                          setManagingQuestionsId(null);
+                        }}
+                      >
+                        <Target className="h-4 w-4 mr-1" />
+                        Score Ranges
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => toggleActive(assessment.id, assessment.is_active)}
+                      >
+                        {assessment.is_active ? 'Deactivate' : 'Activate'}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEdit(assessment)}
+                      >
+                        <Edit className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => handleDelete(assessment.id)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" />
+                        Delete
+                      </Button>
+                    </div>
                   </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex justify-between items-center">
-                  <p className="text-sm text-gray-500">
-                    Questions: {assessment.questions.length}
-                  </p>
-                  <div className="flex space-x-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedAssessment(assessment)}
-                    >
-                      <Settings className="h-4 w-4 mr-1" />
-                      Manage Questions
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowScoreRanges(showScoreRanges === assessment.id ? null : assessment.id);
-                      }}
-                    >
-                      <Target className="h-4 w-4 mr-1" />
-                      Score Ranges
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => toggleActive(assessment.id, assessment.is_active)}
-                    >
-                      {assessment.is_active ? 'Deactivate' : 'Activate'}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEdit(assessment)}
-                    >
-                      <Edit className="h-4 w-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => handleDelete(assessment.id)}
-                    >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-              
-              {/* Score Range Manager */}
+                </CardContent>
+              </Card>
+
+              {/* Questions Management - appears directly below the assessment */}
+              {managingQuestionsId === assessment.id && (
+                <Card>
+                  <CardHeader>
+                    <div className="flex justify-between items-center">
+                      <CardTitle>Questions for "{assessment.title}"</CardTitle>
+                      <Button onClick={() => {
+                        setEditingQuestion(null);
+                        setQuestionFormData({
+                          question_text: ''
+                        });
+                        setIsQuestionDialogOpen(true);
+                      }}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Question
+                      </Button>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      {assessment.questions.map((question, index) => (
+                        <Card key={question.id}>
+                          <CardContent className="pt-4">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <h4 className="font-medium">
+                                  {index + 1}. {question.text}
+                                </h4>
+                                <p className="text-sm text-gray-500 mt-1">
+                                  Answer Options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
+                                </p>
+                              </div>
+                              <div className="flex space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEditQuestion(question)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleDeleteQuestion(question.id)}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))}
+                      {assessment.questions.length === 0 && (
+                        <p className="text-gray-500 text-center py-8">
+                          No questions added yet. Click "Add Question" to get started.
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Score Range Manager - appears directly below the assessment */}
               {showScoreRanges === assessment.id && (
                 <ScoreRangeManager
                   assessmentId={assessment.id}
@@ -477,7 +542,7 @@ const AdminAssessments = () => {
                   maxPossibleScore={assessment.total_questions * 2}
                 />
               )}
-            </Card>
+            </div>
           ))}
         </div>
 
@@ -489,67 +554,6 @@ const AdminAssessments = () => {
               Create Your First Assessment
             </Button>
           </div>
-        )}
-
-        {selectedAssessment && (
-          <Card className="mt-8">
-            <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Questions for "{selectedAssessment.title}"</CardTitle>
-                <Button onClick={() => {
-                  setEditingQuestion(null);
-                  setQuestionFormData({
-                    question_text: ''
-                  });
-                  setIsQuestionDialogOpen(true);
-                }}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Question
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {selectedAssessment.questions.map((question, index) => (
-                  <Card key={question.id}>
-                    <CardContent className="pt-4">
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <h4 className="font-medium">
-                            {index + 1}. {question.text}
-                          </h4>
-                          <p className="text-sm text-gray-500 mt-1">
-                            Answer Options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditQuestion(question)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDeleteQuestion(question.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-                {selectedAssessment.questions.length === 0 && (
-                  <p className="text-gray-500 text-center py-8">
-                    No questions added yet. Click "Add Question" to get started.
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
         )}
 
         <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>

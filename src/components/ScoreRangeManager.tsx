@@ -69,6 +69,20 @@ const ScoreRangeManager: React.FC<ScoreRangeManagerProps> = ({
     }
   };
 
+  const validateScoreRange = (minScore: number, maxScore: number, excludeId?: string): boolean => {
+    // Check if the new range overlaps with existing ranges
+    for (const range of scoreRanges) {
+      if (excludeId && range.id === excludeId) continue;
+      
+      // Check for overlap: new range overlaps if it starts before existing ends and ends after existing starts
+      if (minScore <= range.max_score && maxScore >= range.min_score) {
+        toast.error(`Score range ${minScore}-${maxScore} overlaps with existing range ${range.min_score}-${range.max_score}. Score ranges must be mutually exclusive.`);
+        return false;
+      }
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -79,6 +93,16 @@ const ScoreRangeManager: React.FC<ScoreRangeManagerProps> = ({
 
     if (formData.min_score > formData.max_score) {
       toast.error('Minimum score cannot be greater than maximum score');
+      return;
+    }
+
+    if (formData.min_score < 0 || formData.max_score > maxPossibleScore) {
+      toast.error(`Score range must be between 0 and ${maxPossibleScore}`);
+      return;
+    }
+
+    // Validate mutually exclusive ranges
+    if (!validateScoreRange(formData.min_score, formData.max_score, editingRange?.id)) {
       return;
     }
 
@@ -174,7 +198,7 @@ const ScoreRangeManager: React.FC<ScoreRangeManagerProps> = ({
   };
 
   return (
-    <Card className="mt-6">
+    <Card>
       <CardHeader>
         <div className="flex justify-between items-center">
           <CardTitle>Score Ranges for "{assessmentTitle}"</CardTitle>
@@ -188,7 +212,7 @@ const ScoreRangeManager: React.FC<ScoreRangeManagerProps> = ({
           </Button>
         </div>
         <p className="text-sm text-gray-600">
-          Maximum possible score: {maxPossibleScore} points
+          Maximum possible score: {maxPossibleScore} points (Score ranges must be mutually exclusive)
         </p>
       </CardHeader>
       <CardContent>
@@ -243,7 +267,7 @@ const ScoreRangeManager: React.FC<ScoreRangeManagerProps> = ({
               {editingRange ? 'Edit Score Range' : 'Add New Score Range'}
             </DialogTitle>
             <DialogDescription>
-              Define a score range and its interpretation for users who achieve scores within this range.
+              Define a score range and its interpretation. Score ranges must be mutually exclusive (no overlapping).
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">

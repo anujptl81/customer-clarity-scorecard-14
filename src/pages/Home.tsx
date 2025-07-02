@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
+import AdminAssessmentsList from '@/components/AdminAssessmentsList';
 
 interface Assessment {
   id: string;
@@ -267,63 +269,68 @@ const Home = () => {
           </div>
         )}
 
-        {/* Previously Completed Assessments for all users */}
-        <Card className="mt-12">
-          <CardHeader>
-            <CardTitle>Previously Completed Assessments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {completedAssessments.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Assessment Name</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Percentage</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {completedAssessments.slice(0, 5).map((assessment) => (
-                    <TableRow key={assessment.id}>
-                      <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
-                      <TableCell>
-                        {new Date(assessment.completed_at).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="link"
-                          onClick={() => handleViewCompletedSummary(assessment)}
-                          className="p-0 h-auto"
-                        >
-                          View Summary
-                        </Button>
-                      </TableCell>
+        {/* Admin view: Show all completed assessments with pagination */}
+        {isAdmin ? (
+          <AdminAssessmentsList />
+        ) : (
+          /* Regular users: Show their own completed assessments */
+          <Card className="mt-12">
+            <CardHeader>
+              <CardTitle>Previously Completed Assessments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {completedAssessments.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Assessment Name</TableHead>
+                      <TableHead>Date & Time</TableHead>
+                      <TableHead>Score</TableHead>
+                      <TableHead>Percentage</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No assessments completed yet.</p>
-              </div>
-            )}
-            {completedAssessments.length > 5 && (
-              <div className="mt-4 text-center">
-                <Button variant="outline" onClick={() => navigate('/profile')}>
-                  View All Completed Assessments
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {completedAssessments.slice(0, 5).map((assessment) => (
+                      <TableRow key={assessment.id}>
+                        <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
+                        <TableCell>
+                          {new Date(assessment.completed_at).toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            onClick={() => handleViewCompletedSummary(assessment)}
+                            className="p-0 h-auto"
+                          >
+                            View Summary
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No assessments completed yet.</p>
+                </div>
+              )}
+              {completedAssessments.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Button variant="outline" onClick={() => navigate('/profile')}>
+                    View All Completed Assessments
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
