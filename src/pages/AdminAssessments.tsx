@@ -337,57 +337,62 @@ const AdminAssessments = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <NavigationBar />
       
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
+      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 max-w-7xl">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Assessments</h1>
-            <p className="text-gray-600">Create, edit, and manage assessment forms and questions</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Manage Assessments</h1>
+            <p className="text-sm sm:text-base text-gray-600">Create, edit, and manage assessment forms and questions</p>
           </div>
           
           <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
-              <Button onClick={() => {
-                setEditingAssessment(null);
-                setFormData({ title: '', description: '', total_questions: 0 });
-              }}>
+              <Button 
+                onClick={() => {
+                  setEditingAssessment(null);
+                  setFormData({ title: '', description: '', total_questions: 0 });
+                }}
+                className="w-full sm:w-auto text-sm"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Assessment
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="w-[95vw] max-w-md mx-auto">
               <DialogHeader>
-                <DialogTitle>
+                <DialogTitle className="text-lg">
                   {editingAssessment ? 'Edit Assessment' : 'Create New Assessment'}
                 </DialogTitle>
-                <DialogDescription>
+                <DialogDescription className="text-sm">
                   {editingAssessment ? 'Update the assessment details' : 'Enter the details for your new assessment'}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title" className="text-sm">Title</Label>
                   <Input
                     id="title"
                     value={formData.title}
                     onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                     placeholder="Enter assessment title"
                     required
+                    className="text-sm"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="description" className="text-sm">Description</Label>
                   <Textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                     placeholder="Enter assessment description"
+                    className="text-sm min-h-[80px]"
                   />
                 </div>
-                <DialogFooter>
-                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
+                <DialogFooter className="flex flex-col sm:flex-row gap-2">
+                  <Button type="button" variant="outline" onClick={() => setIsCreateDialogOpen(false)} className="text-sm">
                     Cancel
                   </Button>
-                  <Button type="submit">
+                  <Button type="submit" className="text-sm">
                     {editingAssessment ? 'Update Assessment' : 'Create Assessment'}
                   </Button>
                 </DialogFooter>
@@ -396,75 +401,88 @@ const AdminAssessments = () => {
           </Dialog>
         </div>
 
-        <div className="grid gap-6">
+        <div className="grid gap-4 sm:gap-6">
           {assessments.map((assessment) => (
             <div key={assessment.id} className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl">{assessment.title}</CardTitle>
-                      <p className="text-gray-600 mt-1">{assessment.description}</p>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Badge variant={assessment.is_active ? "default" : "secondary"}>
-                        {assessment.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Badge variant="outline">
-                        {assessment.total_questions} Questions
-                      </Badge>
+              <Card className="overflow-hidden">
+                <CardHeader className="p-4 sm:p-6">
+                  <div className="flex flex-col gap-4">
+                    <div className="space-y-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <CardTitle className="text-lg sm:text-xl break-words pr-2">{assessment.title}</CardTitle>
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                          <Badge variant={assessment.is_active ? "default" : "secondary"} className="text-xs">
+                            {assessment.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {assessment.total_questions} Questions
+                          </Badge>
+                        </div>
+                      </div>
+                      {assessment.description && (
+                        <p className="text-sm sm:text-base text-gray-600 break-words">{assessment.description}</p>
+                      )}
                     </div>
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm text-gray-500">
+                <CardContent className="p-4 sm:p-6 pt-0">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       Questions: {assessment.questions.length}
                     </p>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setManagingQuestionsId(managingQuestionsId === assessment.id ? null : assessment.id);
-                          setShowScoreRanges(null);
-                        }}
-                      >
-                        <Settings className="h-4 w-4 mr-1" />
-                        Manage Questions
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setShowScoreRanges(showScoreRanges === assessment.id ? null : assessment.id);
-                          setManagingQuestionsId(null);
-                        }}
-                      >
-                        <Target className="h-4 w-4 mr-1" />
-                        Score Ranges
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => toggleActive(assessment.id, assessment.is_active)}
-                      >
-                        {assessment.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleEdit(assessment)}
-                      >
-                        <Edit className="h-4 w-4 mr-1" />
-                        Edit
-                      </Button>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="grid grid-cols-2 sm:flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setManagingQuestionsId(managingQuestionsId === assessment.id ? null : assessment.id);
+                            setShowScoreRanges(null);
+                          }}
+                          className="text-xs px-2 py-1 h-8"
+                        >
+                          <Settings className="h-3 w-3 mr-1" />
+                          <span className="hidden sm:inline">Manage Questions</span>
+                          <span className="sm:hidden">Questions</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setShowScoreRanges(showScoreRanges === assessment.id ? null : assessment.id);
+                            setManagingQuestionsId(null);
+                          }}
+                          className="text-xs px-2 py-1 h-8"
+                        >
+                          <Target className="h-3 w-3 mr-1" />
+                          <span className="hidden sm:inline">Score Ranges</span>
+                          <span className="sm:hidden">Scores</span>
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => toggleActive(assessment.id, assessment.is_active)}
+                          className="text-xs px-2 py-1 h-8"
+                        >
+                          {assessment.is_active ? 'Deactivate' : 'Activate'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEdit(assessment)}
+                          className="text-xs px-2 py-1 h-8"
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Edit
+                        </Button>
+                      </div>
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => handleDelete(assessment.id)}
+                        className="text-xs px-2 py-1 h-8 w-full sm:w-auto"
                       >
-                        <Trash2 className="h-4 w-4 mr-1" />
+                        <Trash2 className="h-3 w-3 mr-1" />
                         Delete
                       </Button>
                     </div>
@@ -474,50 +492,57 @@ const AdminAssessments = () => {
 
               {/* Questions Management - appears directly below the assessment */}
               {managingQuestionsId === assessment.id && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex justify-between items-center">
-                      <CardTitle>Questions for "{assessment.title}"</CardTitle>
-                      <Button onClick={() => {
-                        setEditingQuestion(null);
-                        setQuestionFormData({
-                          question_text: ''
-                        });
-                        setIsQuestionDialogOpen(true);
-                      }}>
+                <Card className="overflow-hidden">
+                  <CardHeader className="p-4 sm:p-6">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+                      <CardTitle className="text-lg break-words">Questions for "{assessment.title}"</CardTitle>
+                      <Button 
+                        onClick={() => {
+                          setEditingQuestion(null);
+                          setQuestionFormData({
+                            question_text: ''
+                          });
+                          setIsQuestionDialogOpen(true);
+                        }}
+                        className="text-sm w-full sm:w-auto"
+                      >
                         <Plus className="h-4 w-4 mr-2" />
                         Add Question
                       </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-4 sm:p-6 pt-0">
                     <div className="space-y-4">
                       {assessment.questions.map((question, index) => (
-                        <Card key={question.id}>
-                          <CardContent className="pt-4">
-                            <div className="flex justify-between items-start">
-                              <div className="flex-1">
-                                <h4 className="font-medium">
+                        <Card key={question.id} className="overflow-hidden">
+                          <CardContent className="p-3 sm:p-4">
+                            <div className="flex flex-col gap-3">
+                              <div className="flex-1 space-y-2">
+                                <h4 className="font-medium text-sm sm:text-base break-words">
                                   {index + 1}. {question.text}
                                 </h4>
-                                <p className="text-sm text-gray-500 mt-1">
+                                <p className="text-xs sm:text-sm text-gray-500">
                                   Answer Options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
                                 </p>
                               </div>
-                              <div className="flex space-x-2">
+                              <div className="flex gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleEditQuestion(question)}
+                                  className="flex-1 sm:flex-none text-xs px-3 py-1 h-8"
                                 >
-                                  <Edit className="h-4 w-4" />
+                                  <Edit className="h-3 w-3 mr-1" />
+                                  Edit
                                 </Button>
                                 <Button
                                   variant="destructive"
                                   size="sm"
                                   onClick={() => handleDeleteQuestion(question.id)}
+                                  className="flex-1 sm:flex-none text-xs px-3 py-1 h-8"
                                 >
-                                  <Trash2 className="h-4 w-4" />
+                                  <Trash2 className="h-3 w-3 mr-1" />
+                                  Delete
                                 </Button>
                               </div>
                             </div>
@@ -525,7 +550,7 @@ const AdminAssessments = () => {
                         </Card>
                       ))}
                       {assessment.questions.length === 0 && (
-                        <p className="text-gray-500 text-center py-8">
+                        <p className="text-gray-500 text-center py-8 text-sm">
                           No questions added yet. Click "Add Question" to get started.
                         </p>
                       )}
@@ -548,8 +573,8 @@ const AdminAssessments = () => {
 
         {assessments.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg mb-4">No assessments found.</p>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
+            <p className="text-gray-500 text-base sm:text-lg mb-4">No assessments found.</p>
+            <Button onClick={() => setIsCreateDialogOpen(true)} className="text-sm">
               <Plus className="h-4 w-4 mr-2" />
               Create Your First Assessment
             </Button>
@@ -557,28 +582,29 @@ const AdminAssessments = () => {
         )}
 
         <Dialog open={isQuestionDialogOpen} onOpenChange={setIsQuestionDialogOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl mx-auto max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="text-lg">
                 {editingQuestion ? 'Edit Question' : 'Add New Question'}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-sm">
                 All questions will have 4 radio button options: Yes (2 pts), Partially in place (1 pt), No (0 pts), Don't know (-1 pt)
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleQuestionSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="question_text">Question Text</Label>
+                <Label htmlFor="question_text" className="text-sm">Question Text</Label>
                 <Textarea
                   id="question_text"
                   value={questionFormData.question_text}
                   onChange={(e) => setQuestionFormData(prev => ({ ...prev, question_text: e.target.value }))}
                   placeholder="Enter your question"
                   required
+                  className="text-sm min-h-[100px]"
                 />
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="flex flex-col sm:flex-row gap-2">
                 <Button 
                   type="button" 
                   variant="outline" 
@@ -586,10 +612,11 @@ const AdminAssessments = () => {
                     setIsQuestionDialogOpen(false);
                     resetQuestionForm();
                   }}
+                  className="text-sm"
                 >
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="text-sm">
                   {editingQuestion ? 'Update Question' : 'Add Question'}
                 </Button>
               </DialogFooter>
