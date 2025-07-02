@@ -216,13 +216,13 @@ const ManageUsers = () => {
       
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Users</h1>
-          <p className="text-gray-600">View and manage user accounts, roles, and tiers</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">Manage Users</h1>
+          <p className="text-sm md:text-base text-gray-600">View and manage user accounts, roles, and tiers</p>
         </div>
 
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col gap-4">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                 <Input
@@ -233,7 +233,7 @@ const ManageUsers = () => {
                 />
               </div>
               <Select value={tierFilter} onValueChange={setTierFilter}>
-                <SelectTrigger className="w-[180px]">
+                <SelectTrigger className="w-full md:w-[180px]">
                   <SelectValue placeholder="Filter by tier" />
                 </SelectTrigger>
                 <SelectContent>
@@ -245,25 +245,25 @@ const ManageUsers = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Tier</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Assessments</TableHead>
-                    <TableHead>Joined</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="min-w-[200px]">User</TableHead>
+                    <TableHead className="min-w-[100px]">Tier</TableHead>
+                    <TableHead className="min-w-[100px]">Role</TableHead>
+                    <TableHead className="min-w-[120px]">Assessments</TableHead>
+                    <TableHead className="min-w-[100px]">Joined</TableHead>
+                    <TableHead className="min-w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredUsers.map((userData) => (
                     <TableRow key={userData.id}>
                       <TableCell>
-                        <div>
-                          <div className="font-medium">{userData.full_name || 'No name'}</div>
-                          <div className="text-sm text-gray-500">{userData.email}</div>
+                        <div className="min-w-0">
+                          <div className="font-medium truncate">{userData.full_name || 'No name'}</div>
+                          <div className="text-sm text-gray-500 truncate">{userData.email}</div>
                         </div>
                       </TableCell>
                       <TableCell>
@@ -281,14 +281,14 @@ const ManageUsers = () => {
                         </Select>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={userData.role === 'admin' ? 'default' : 'secondary'}>
+                        <Badge variant={userData.role === 'admin' ? 'default' : 'secondary'} className="text-xs">
                           {userData.role === 'admin' && <Crown className="h-3 w-3 mr-1" />}
                           {userData.role || 'user'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">
-                          {userData.assessment_count || 0} completed
+                        <Badge variant="outline" className="text-xs">
+                          {userData.assessment_count || 0}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -297,25 +297,27 @@ const ManageUsers = () => {
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
+                        <div className="flex justify-end">
                           {userData.role === 'admin' ? (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => updateUserRole(userData.id, 'user')}
                               disabled={userData.id === user?.id}
+                              className="text-xs px-2 py-1"
                             >
-                              <UserX className="h-4 w-4 mr-1" />
-                              Demote
+                              <UserX className="h-3 w-3 mr-1" />
+                              <span className="hidden sm:inline">Demote</span>
                             </Button>
                           ) : (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => updateUserRole(userData.id, 'admin')}
+                              className="text-xs px-2 py-1"
                             >
-                              <UserCheck className="h-4 w-4 mr-1" />
-                              Promote
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              <span className="hidden sm:inline">Promote</span>
                             </Button>
                           )}
                         </div>

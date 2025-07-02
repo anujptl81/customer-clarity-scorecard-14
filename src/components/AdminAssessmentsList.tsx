@@ -121,32 +121,37 @@ const AdminAssessmentsList = () => {
         profileMap.set(profile.id, profile);
       });
 
-      // Transform the data to match our interface
-      const transformedAssessments: CompletedAssessment[] = userAssessments.map(assessment => {
-        const userProfile = profileMap.get(assessment.user_id);
-        
-        return {
-          ...assessment,
-          responses: assessment.responses as Record<number, number> | undefined,
-          form_assessments: {
-            title: assessment.form_assessments?.title || 'Unknown',
-            questions: Array.isArray(assessment.form_assessments?.questions) 
-              ? assessment.form_assessments.questions.map((q: any) => ({
-                  id: q.id || '',
-                  text: q.text || '',
-                  order: q.order || 0
-                }))
-              : []
-          },
-          user_profile: {
-            full_name: userProfile?.full_name || 'Unknown User',
-            email: userProfile?.email || 'No Email'
-          }
-        };
-      });
+      // Transform the data to match our interface - only include assessments where we have user profile data
+      const transformedAssessments: CompletedAssessment[] = userAssessments
+        .filter(assessment => {
+          const userProfile = profileMap.get(assessment.user_id);
+          return userProfile && userProfile.full_name && userProfile.email;
+        })
+        .map(assessment => {
+          const userProfile = profileMap.get(assessment.user_id);
+          
+          return {
+            ...assessment,
+            responses: assessment.responses as Record<number, number> | undefined,
+            form_assessments: {
+              title: assessment.form_assessments?.title || 'Unknown',
+              questions: Array.isArray(assessment.form_assessments?.questions) 
+                ? assessment.form_assessments.questions.map((q: any) => ({
+                    id: q.id || '',
+                    text: q.text || '',
+                    order: q.order || 0
+                  }))
+                : []
+            },
+            user_profile: {
+              full_name: userProfile?.full_name || 'Unknown User',
+              email: userProfile?.email || 'No Email'
+            }
+          };
+        });
 
       setCompletedAssessments(transformedAssessments);
-      setTotalPages(Math.ceil((count || 0) / itemsPerPage));
+      setTotalPages(Math.ceil(transformedAssessments.length / itemsPerPage));
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -168,7 +173,7 @@ const AdminAssessmentsList = () => {
     return (
       <Card className="mt-12">
         <CardHeader>
-          <CardTitle>All Completed Assessments (Admin View)</CardTitle>
+          <CardTitle>All Completed Assessments</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8">
@@ -183,54 +188,64 @@ const AdminAssessmentsList = () => {
     <>
       <Card className="mt-12">
         <CardHeader>
-          <CardTitle>All Completed Assessments (Admin View) - {completedAssessments.length} of {totalPages * itemsPerPage}</CardTitle>
+          <CardTitle className="text-lg md:text-xl">All Completed Assessments</CardTitle>
         </CardHeader>
         <CardContent>
           {completedAssessments.length > 0 ? (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>User</TableHead>
-                    <TableHead>Assessment Name</TableHead>
-                    <TableHead>Date & Time</TableHead>
-                    <TableHead>Score</TableHead>
-                    <TableHead>Percentage</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {completedAssessments.map((assessment) => (
-                    <TableRow key={assessment.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{assessment.user_profile?.full_name}</div>
-                          <div className="text-sm text-gray-500">{assessment.user_profile?.email}</div>
-                        </div>
-                      </TableCell>
-                      <TableCell>{assessment.form_assessments.title}</TableCell>
-                      <TableCell>
-                        {new Date(assessment.completed_at).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="link"
-                          onClick={() => handleViewSummary(assessment)}
-                          className="p-0 h-auto"
-                        >
-                          View Summary
-                        </Button>
-                      </TableCell>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="min-w-[150px]">User</TableHead>
+                      <TableHead className="min-w-[200px]">Assessment Name</TableHead>
+                      <TableHead className="min-w-[150px]">Date & Time</TableHead>
+                      <TableHead className="min-w-[80px]">Score</TableHead>
+                      <TableHead className="min-w-[80px]">Percentage</TableHead>
+                      <TableHead className="min-w-[100px]">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {completedAssessments.map((assessment) => (
+                      <TableRow key={assessment.id}>
+                        <TableCell>
+                          <div className="min-w-0">
+                            <div className="font-medium truncate">{assessment.user_profile?.full_name}</div>
+                            <div className="text-sm text-gray-500 truncate">{assessment.user_profile?.email}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="truncate">{assessment.form_assessments.title}</div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {new Date(assessment.completed_at).toLocaleDateString()}
+                            <br />
+                            <span className="text-xs text-gray-500">
+                              {new Date(assessment.completed_at).toLocaleTimeString()}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{assessment.total_score}/{assessment.max_possible_score}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{Math.round(assessment.percentage_score)}%</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            onClick={() => handleViewSummary(assessment)}
+                            className="p-0 h-auto text-xs"
+                          >
+                            View Summary
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {totalPages > 1 && (
                 <div className="mt-4">
@@ -298,8 +313,8 @@ const AdminAssessmentsList = () => {
                   
                   return (
                     <div key={question.id} className="border-b pb-4">
-                      <p className="font-medium mb-2">Question {question.order}: {question.text}</p>
-                      <p className="text-blue-600">Selected: {responseText}</p>
+                      <p className="font-medium mb-2 text-sm">Question {question.order}: {question.text}</p>
+                      <p className="text-blue-600 text-sm">Selected: {responseText}</p>
                     </div>
                   );
                 })

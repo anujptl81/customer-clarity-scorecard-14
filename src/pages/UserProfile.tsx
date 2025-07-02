@@ -5,22 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { User, CreditCard, Calendar, Trophy, X } from 'lucide-react';
+import { User, CreditCard, Calendar, Trophy } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import NavigationBar from '@/components/NavigationBar';
 
@@ -29,12 +14,6 @@ interface UserProfileData {
   email: string;
   user_tier: string;
   created_at: string;
-}
-
-interface Question {
-  id: string;
-  text: string;
-  order: number;
 }
 
 interface CompletedAssessment {
@@ -50,24 +29,18 @@ interface CompletedAssessment {
   };
 }
 
+interface Question {
+  id: string;
+  text: string;
+  order: number;
+}
+
 const UserProfile = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<UserProfileData | null>(null);
   const [completedAssessments, setCompletedAssessments] = useState<CompletedAssessment[]>([]);
-  const [selectedAssessment, setSelectedAssessment] = useState<CompletedAssessment | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
   const [loading, setLoading] = useState(true);
-  const itemsPerPage = 10;
-
-  // Response options mapping
-  const responseOptions = [
-    { score: 2, text: 'Yes' },
-    { score: 1, text: 'Partially in place' },
-    { score: 0, text: 'No' },
-    { score: -1, text: "Don't know" }
-  ];
 
   useEffect(() => {
     if (user) {
@@ -140,23 +113,6 @@ const UserProfile = () => {
     }
   };
 
-  const handleViewSummary = (assessment: CompletedAssessment) => {
-    setSelectedAssessment(assessment);
-    setIsDialogOpen(true);
-  };
-
-  const getResponseText = (score: number) => {
-    const option = responseOptions.find(opt => opt.score === score);
-    return option ? option.text : 'Unknown';
-  };
-
-  const paginatedAssessments = completedAssessments.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
-
-  const totalPages = Math.ceil(completedAssessments.length / itemsPerPage);
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
@@ -174,15 +130,15 @@ const UserProfile = () => {
       
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">User Profile</h1>
-          <p className="text-gray-600">Manage your account and view your assessment history</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">User Profile</h1>
+          <p className="text-sm md:text-base text-gray-600">Manage your account and view your assessment statistics</p>
         </div>
 
         {/* Profile Information */}
         <div className="grid gap-6 md:grid-cols-2 mb-8">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
+              <CardTitle className="flex items-center space-x-2 text-lg">
                 <User className="h-5 w-5" />
                 <span>Profile Information</span>
               </CardTitle>
@@ -190,15 +146,15 @@ const UserProfile = () => {
             <CardContent className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Full Name</label>
-                <p className="text-lg">{profile?.full_name || 'Not provided'}</p>
+                <p className="text-base md:text-lg break-words">{profile?.full_name || 'Not provided'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Email</label>
-                <p className="text-lg">{profile?.email}</p>
+                <p className="text-base md:text-lg break-all">{profile?.email}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Member Since</label>
-                <p className="text-lg">
+                <p className="text-base md:text-lg">
                   {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'Unknown'}
                 </p>
               </div>
@@ -207,7 +163,7 @@ const UserProfile = () => {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
+              <CardTitle className="flex items-center space-x-2 text-lg">
                 <CreditCard className="h-5 w-5" />
                 <span>Subscription Status</span>
               </CardTitle>
@@ -223,15 +179,15 @@ const UserProfile = () => {
               </div>
               
               {profile?.user_tier === 'Free' && (
-                <Button onClick={() => navigate('/upgrade')} className="w-full">
+                <Button onClick={() => navigate('/upgrade')} className="w-full text-sm md:text-base">
                   Upgrade to Premium
                 </Button>
               )}
               
               {profile?.user_tier === 'Premium' && (
                 <div className="p-4 bg-green-50 rounded-lg">
-                  <p className="text-green-800 font-medium">Premium Member</p>
-                  <p className="text-green-600 text-sm">You have access to all assessments</p>
+                  <p className="text-green-800 font-medium text-sm md:text-base">Premium Member</p>
+                  <p className="text-green-600 text-xs md:text-sm">You have access to all assessments</p>
                 </div>
               )}
             </CardContent>
@@ -239,28 +195,28 @@ const UserProfile = () => {
         </div>
 
         {/* Assessment Statistics */}
-        <div className="grid gap-6 md:grid-cols-3 mb-8">
+        <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-3 mb-8">
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Trophy className="h-5 w-5" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center space-x-2 text-base md:text-lg">
+                <Trophy className="h-4 w-4 md:h-5 md:w-5" />
                 <span>Total Assessments</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{completedAssessments.length}</div>
+              <div className="text-2xl md:text-3xl font-bold">{completedAssessments.length}</div>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="h-5 w-5" />
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center space-x-2 text-base md:text-lg">
+                <Calendar className="h-4 w-4 md:h-5 md:w-5" />
                 <span>This Month</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">
+              <div className="text-2xl md:text-3xl font-bold">
                 {completedAssessments.filter(a => 
                   new Date(a.completed_at).getMonth() === new Date().getMonth()
                 ).length}
@@ -269,11 +225,11 @@ const UserProfile = () => {
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Average Score</CardTitle>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base md:text-lg">Average Score</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">
+              <div className="text-2xl md:text-3xl font-bold">
                 {completedAssessments.length > 0 
                   ? Math.round(completedAssessments.reduce((sum, a) => sum + a.percentage_score, 0) / completedAssessments.length)
                   : 0
@@ -283,126 +239,18 @@ const UserProfile = () => {
           </Card>
         </div>
 
-        {/* Previously Completed Assessments */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Previously Completed Assessments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {completedAssessments.length > 0 ? (
-              <>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Assessment Name</TableHead>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Score</TableHead>
-                      <TableHead>Percentage</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {paginatedAssessments.map((assessment) => (
-                      <TableRow key={assessment.id}>
-                        <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
-                        <TableCell>
-                          {new Date(assessment.completed_at).toLocaleString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{assessment.total_score}/{assessment.max_possible_score}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{Math.round(assessment.percentage_score)}%</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            onClick={() => handleViewSummary(assessment)}
-                            className="p-0 h-auto"
-                          >
-                            View Summary
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex justify-center space-x-2 mt-4">
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                      disabled={currentPage === 1}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-4">
-                      Page {currentPage} of {totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                      disabled={currentPage === totalPages}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-500">No assessments completed yet.</p>
-                <Button onClick={() => navigate('/')} className="mt-4">
-                  Take Your First Assessment
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Assessment Summary Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <div className="flex items-center justify-between">
-              <DialogTitle>Assessment Summary</DialogTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDialogOpen(false)}
-                className="h-6 w-6 p-0"
-              >
-                <X className="h-4 w-4" />
+        {/* Call to Action */}
+        {completedAssessments.length === 0 && (
+          <Card>
+            <CardContent className="text-center py-8">
+              <p className="text-gray-500 mb-4 text-sm md:text-base">No assessments completed yet.</p>
+              <Button onClick={() => navigate('/')} className="text-sm md:text-base">
+                Take Your First Assessment
               </Button>
-            </div>
-            <DialogDescription>
-              {selectedAssessment?.form_assessments?.title} - Score: {selectedAssessment?.total_score}/{selectedAssessment?.max_possible_score} ({Math.round(selectedAssessment?.percentage_score || 0)}%)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="mt-4 space-y-4">
-            {selectedAssessment?.responses && selectedAssessment?.form_assessments?.questions ? (
-              selectedAssessment.form_assessments.questions
-                .sort((a, b) => a.order - b.order)
-                .map((question) => {
-                  const responseScore = selectedAssessment.responses?.[question.order];
-                  const responseText = responseScore !== undefined ? getResponseText(responseScore) : 'No response';
-                  
-                  return (
-                    <div key={question.id} className="border-b pb-4">
-                      <p className="font-medium mb-2">Question {question.order}: {question.text}</p>
-                      <p className="text-blue-600">Selected: {responseText}</p>
-                    </div>
-                  );
-                })
-            ) : (
-              <p className="text-gray-500">No detailed responses available for this assessment.</p>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   );
 };
