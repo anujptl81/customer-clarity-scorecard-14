@@ -173,11 +173,11 @@ const AdminAssessmentsList = () => {
                     <TableRow key={assessment.id}>
                       <TableCell>
                         <div>
-                          <div className="font-medium">{assessment.profiles?.full_name}</div>
-                          <div className="text-sm text-gray-500">{assessment.profiles?.email}</div>
+                          <div className="font-medium">{assessment.profiles.full_name}</div>
+                          <div className="text-sm text-gray-500">{assessment.profiles.email}</div>
                         </div>
                       </TableCell>
-                      <TableCell>{assessment.form_assessments?.title || 'Unknown'}</TableCell>
+                      <TableCell>{assessment.form_assessments.title}</TableCell>
                       <TableCell>
                         {new Date(assessment.completed_at).toLocaleString()}
                       </TableCell>
