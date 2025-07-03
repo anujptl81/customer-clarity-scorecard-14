@@ -13,14 +13,51 @@ const LoginForm = () => {
   const [password, setPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [firstNameError, setFirstNameError] = useState('');
+  const [lastNameError, setLastNameError] = useState('');
   const [isSignUp, setIsSignUp] = useState(false);
   const { login, signUp, loginWithGoogle, isLoading } = useAuth();
+
+  const validateName = (name: string) => {
+    const nameRegex = /^[A-Za-z\s]*$/;
+    return nameRegex.test(name);
+  };
+
+  const capitalizeName = (name: string) => {
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
+  const handleFirstNameChange = (value: string) => {
+    if (!validateName(value)) {
+      setFirstNameError('Only alphabets are allowed');
+    } else {
+      setFirstNameError('');
+    }
+    setFirstName(value);
+  };
+
+  const handleLastNameChange = (value: string) => {
+    if (!validateName(value)) {
+      setLastNameError('Only alphabets are allowed');
+    } else {
+      setLastNameError('');
+    }
+    setLastName(value);
+  };
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (isSignUp) {
-      const { error } = await signUp(email, password, firstName, lastName);
+      if (firstNameError || lastNameError) {
+        toast.error('Please fix the name validation errors');
+        return;
+      }
+      
+      const capitalizedFirstName = firstName ? capitalizeName(firstName) : '';
+      const capitalizedLastName = lastName ? capitalizeName(lastName) : '';
+      
+      const { error } = await signUp(email, password, capitalizedFirstName, capitalizedLastName);
       if (error) {
         toast.error(error.message);
       } else {
@@ -63,11 +100,14 @@ const LoginForm = () => {
                     type="text"
                     placeholder="Enter your first name"
                     value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
+                    onChange={(e) => handleFirstNameChange(e.target.value)}
                     className="pl-10"
                     required
                   />
                 </div>
+                {firstNameError && (
+                  <p className="text-xs text-red-500 mt-1">{firstNameError}</p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="lastName">Last Name</Label>
@@ -78,10 +118,13 @@ const LoginForm = () => {
                     type="text"
                     placeholder="Enter your last name"
                     value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
+                    onChange={(e) => handleLastNameChange(e.target.value)}
                     className="pl-10"
                   />
                 </div>
+                {lastNameError && (
+                  <p className="text-xs text-red-500 mt-1">{lastNameError}</p>
+                )}
               </div>
             </>
           )}

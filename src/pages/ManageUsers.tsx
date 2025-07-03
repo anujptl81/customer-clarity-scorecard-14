@@ -65,7 +65,7 @@ const ManageUsers = () => {
 
   const fetchUsers = async () => {
     try {
-      // Fetch all user profiles
+      // Fetch all user profiles with admin visibility
       const { data: profiles, error: profilesError } = await supabase
         .from('profiles')
         .select('*')
