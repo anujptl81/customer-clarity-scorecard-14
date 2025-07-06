@@ -269,7 +269,7 @@ const Home = () => {
           </div>
         )}
 
-        {/* Admin view: Show all completed assessments with pagination */}
+        {/* Admin view: Shows all completed assessments with pagination */}
         {isAdmin ? (
           <AdminAssessmentsList />
         ) : (
