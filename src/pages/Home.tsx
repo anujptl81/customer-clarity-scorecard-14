@@ -254,7 +254,7 @@ const Home = () => {
                   
                   {userTier === 'Free' && !isAdmin && (
                     <p className="text-sm text-amber-600 text-center">
-                      Upgrade to Premium to take assessments
+                      Upgrade to Premium to take assessment
                     </p>
                   )}
                 </div>
